@@ -18,7 +18,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
-#include "esp_netif.h"
+#include "tcpip_adapter.h"
 #include "esp_smartconfig.h"
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
@@ -33,7 +33,7 @@ static const char *TAG = "smartconfig_example";
 
 static void smartconfig_example_task(void * parm);
 
-static void event_handler(void* arg, esp_event_base_t event_base,
+static void event_handler(void* arg, esp_event_base_t event_base, 
                                 int32_t event_id, void* event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -78,11 +78,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 static void initialise_wifi(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init());
+    tcpip_adapter_init();
     s_wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
-    assert(sta_netif);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
@@ -102,7 +100,7 @@ static void smartconfig_example_task(void * parm)
     smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
     while (1) {
-        uxBits = xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
+        uxBits = xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY); 
         if(uxBits & CONNECTED_BIT) {
             ESP_LOGI(TAG, "WiFi Connected to ap");
         }
@@ -114,8 +112,9 @@ static void smartconfig_example_task(void * parm)
     }
 }
 
-void app_main(void)
+void app_main()
 {
     ESP_ERROR_CHECK( nvs_flash_init() );
     initialise_wifi();
 }
+

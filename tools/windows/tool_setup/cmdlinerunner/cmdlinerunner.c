@@ -35,7 +35,7 @@ struct proc_instance_s {
 };
 
 #ifdef WITH_DEBUG
-static void print_last_error(void)
+static void print_last_error()
 {
     DWORD dw;
     TCHAR errmsg[LINESIZE];
@@ -51,7 +51,7 @@ static void print_last_error(void)
 #define PRINT_LAST_ERROR()
 #endif
 
-static proc_instance_t *proc_instance_allocate(void)
+static proc_instance_t *proc_instance_allocate()
 {
     return (proc_instance_t*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(proc_instance_t));
 }
@@ -191,3 +191,4 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved )
 {
     return TRUE;
 }
+

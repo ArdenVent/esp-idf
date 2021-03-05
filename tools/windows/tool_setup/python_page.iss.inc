@@ -1,4 +1,4 @@
-{ Copyright 2019-2020 Espressif Systems (Shanghai) CO LTD
+{ Copyright 2019 Espressif Systems (Shanghai) PTE LTD
   SPDX-License-Identifier: Apache-2.0 }
 
 { ------------------------------ Page to select Python interpreter ------------------------------ }
@@ -49,6 +49,8 @@ begin
   Log('OnPythonPagePrepare');
   if Page.CheckListBox.Items.Count > 0 then
     exit;
+
+  FindInstalledPythonVersions();
 
   VersionToInstall := '{#PythonVersion}';
   OfferToInstall := True;
@@ -117,11 +119,11 @@ end;
 
 procedure PythonExecutablePathUpdateAfterInstall();
 var
-  Version, DisplayName, ExecutablePath, BaseDir: String;
+  Version, DisplayName, ExecutablePath: String;
 begin
   if not GetPythonVersionInfoFromKey(
       HKEY_CURRENT_USER, 'Software\Python', 'PythonCore', '{#PythonVersion}',
-      Version, DisplayName, ExecutablePath, BaseDir) then
+      Version, DisplayName, ExecutablePath) then
   begin
     Log('Failed to find ExecutablePath for the installed copy of Python');
     exit;

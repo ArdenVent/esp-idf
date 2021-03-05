@@ -12,7 +12,6 @@
 #include <stdbool.h>
 
 #include "lkc.h"
-#include "expand_env.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
 
@@ -48,7 +47,6 @@ static struct menu *current_menu, *current_entry;
 %token <id>T_MENU
 %token <id>T_ENDMENU
 %token <id>T_SOURCE
-%token <id>T_RSOURCE
 %token <id>T_CHOICE
 %token <id>T_ENDCHOICE
 %token <id>T_COMMENT
@@ -136,7 +134,6 @@ common_stmt:
 	| config_stmt
 	| menuconfig_stmt
 	| source_stmt
-	| rsource_stmt
 ;
 
 option_error:
@@ -205,14 +202,6 @@ config_option: T_PROMPT prompt if_expr T_EOL
 
 config_option: T_DEFAULT expr if_expr T_EOL
 {
-	if ($2 && $2->type == E_SYMBOL) {
-		char *str = expand_environment($2->left.sym->name, zconf_curname(), zconf_lineno());
-		if (strcmp($2->left.sym->name, str) != 0) {
-			$2->left.sym->name = realloc($2->left.sym->name, strlen(str) + 1);
-			strncpy($2->left.sym->name, str, strlen(str) + 1);
-		}
-		free_expanded(str);
-	}
 	menu_add_expr(P_DEFAULT, $2, $3);
 	if ($1->stype != S_UNKNOWN)
 		menu_set_type($1->stype);
@@ -397,13 +386,7 @@ menu_block:
 source_stmt: T_SOURCE prompt T_EOL
 {
 	printd(DEBUG_PARSE, "%s:%d:source %s\n", zconf_curname(), zconf_lineno(), $2);
-	zconf_nextfiles($2, false);
-};
-
-rsource_stmt: T_RSOURCE prompt T_EOL
-{
-	printd(DEBUG_PARSE, "%s:%d:rsource %s\n", zconf_curname(), zconf_lineno(), $2);
-	zconf_nextfiles($2, true);
+	zconf_nextfiles($2);
 };
 
 /* comment entry */

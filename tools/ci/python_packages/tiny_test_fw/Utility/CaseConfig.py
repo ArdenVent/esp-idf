@@ -45,7 +45,6 @@ Template Config File::
 import importlib
 
 import yaml
-
 try:
     from yaml import CLoader as Loader
 except ImportError:
@@ -128,6 +127,7 @@ def filter_test_cases(test_methods, case_filter):
         * user case filter is ``chip: ["esp32", "esp32c"]``, case attribute is ``chip: "esp32"``
         * user case filter is ``chip: "esp32"``, case attribute is ``chip: "esp32"``
 
+
     :param test_methods: a list of test methods functions
     :param case_filter: case filter
     :return: filtered test methods
@@ -187,32 +187,11 @@ class Parser(object):
         test_case_list = []
         for _config in configs["CaseConfig"]:
             _filter = configs["Filter"].copy()
-            _overwrite = cls.handle_overwrite_args(_config.pop("overwrite", dict()))
-            _extra_data = _config.pop("extra_data", None)
             _filter.update(_config)
-
-            # Try get target from yml
-            try:
-                _target = _filter['target']
-            except KeyError:
-                _target = None
-            else:
-                _overwrite.update({'target': _target})
-
+            _overwrite = cls.handle_overwrite_args(_filter.pop("overwrite", dict()))
+            _extra_data = _filter.pop("extra_data", None)
             for test_method in test_methods:
                 if _filter_one_case(test_method, _filter):
-                    try:
-                        dut_dict = test_method.case_info['dut_dict']
-                    except (AttributeError, KeyError):
-                        dut_dict = None
-
-                    if dut_dict and _target:
-                        dut = test_method.case_info.get('dut')
-                        if _target.upper() in dut_dict:
-                            if dut and dut in dut_dict.values():  # don't overwrite special cases
-                                _overwrite.update({'dut': dut_dict[_target.upper()]})
-                        else:
-                            raise ValueError('target {} is not in the specified dut_dict'.format(_target))
                     test_case_list.append(TestCase.TestCase(test_method, _extra_data, **_overwrite))
         return test_case_list
 

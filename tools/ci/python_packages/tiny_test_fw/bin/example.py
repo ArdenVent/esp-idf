@@ -14,12 +14,23 @@
 
 """ example of writing test with TinyTestFW """
 import re
+import os
+import sys
 
-import ttfw_idf
-from tiny_test_fw import TinyFW
+try:
+    import TinyFW
+except ImportError:
+    # if we want to run test case outside `tiny-test-fw` folder,
+    # we need to insert tiny-test-fw path into sys path
+    test_fw_path = os.getenv("TEST_FW_PATH")
+    if test_fw_path and test_fw_path not in sys.path:
+        sys.path.insert(0, test_fw_path)
+    import TinyFW
+
+import IDF
 
 
-@ttfw_idf.idf_example_test(env_tag="Example_WIFI")
+@IDF.idf_example_test(env_tag="Example_WIFI")
 def test_examples_protocol_https_request(env, extra_data):
     """
     steps: |
@@ -27,7 +38,7 @@ def test_examples_protocol_https_request(env, extra_data):
       2. connect to www.howsmyssl.com:443
       3. send http request
     """
-    dut1 = env.get_dut("https_request", "examples/protocols/https_request", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("https_request", "examples/protocols/https_request")
     dut1.start_app()
     dut1.expect(re.compile(r"Connecting to www.howsmyssl.com:443"), timeout=30)
     dut1.expect("Performing the SSL/TLS handshake")
@@ -39,5 +50,5 @@ def test_examples_protocol_https_request(env, extra_data):
 
 
 if __name__ == '__main__':
-    TinyFW.set_default_config(env_config_file="EnvConfigTemplate.yml", dut=ttfw_idf.IDFDUT)
+    TinyFW.set_default_config(env_config_file="EnvConfigTemplate.yml", dut=IDF.IDFDUT)
     test_examples_protocol_https_request()

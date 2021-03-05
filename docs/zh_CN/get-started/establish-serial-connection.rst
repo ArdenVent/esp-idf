@@ -1,116 +1,103 @@
-与 {IDF_TARGET_NAME} 创建串口连接
-==============================================
+与 ESP32 建立串口连接
+=====================
 
 :link_to_translation:`en:[English]`
 
-本章节主要介绍如何创建 {IDF_TARGET_NAME} 和 PC 之间的串口连接。
+本章节主要介绍如何创建 ESP32 和 PC 之间的串口连接。
 
+连接 ESP32 和 PC
+-----------------
 
-连接 {IDF_TARGET_NAME} 和 PC
-------------------------------
+用 USB 线将 ESP32 开发板连接到 PC。如果设备驱动程序没有自动安装，请先确认 ESP32 开发板上的 USB 转串口芯片（或外部转串口适配器）型号，然后在网上搜索驱动程序，并进行手动安装。
 
-用 USB 线将 {IDF_TARGET_NAME} 开发板连接到 PC。如果设备驱动程序没有自动安装，请先确认 {IDF_TARGET_NAME} 开发板上的 USB 转串口芯片（或外部转串口适配器）型号，然后在网上搜索驱动程序，并进行手动安装。
+以下是乐鑫 ESP32 开发板驱动程序的链接：
 
-以下是乐鑫 {IDF_TARGET_NAME} 开发板驱动程序的链接：
+.. csv-table::
+    :header: 开发板, USB 驱动, 备注
+    :widths: 40, 20, 40
 
-.. only:: esp32
-
-    .. csv-table::
-        :header: 开发板, USB 驱动, 备注
-        :widths: 40, 20, 40
-
-        :ref:`ESP32-DevKitC <esp-modules-and-boards-esp32-devkitc>`,  `CP210x`_
-        `ESP32-LyraT <https://www.espressif.com/en/products/hardware/esp32-lyrat>`_, `CP210x`_
-        `ESP32-LyraTD-MSC <https://www.espressif.com/en/products/hardware/esp32-lyratd-msc>`_, `CP210x`_
-        :ref:`ESP32-PICO-KIT <esp-modules-and-boards-esp32-pico-kit>`, `CP210x`_
-        :ref:`ESP-WROVER-KIT <esp-modules-and-boards-esp-wrover-kit>`, `FTDI`_
-        :ref:`ESP32 Demo 板 <esp-modules-and-boards-esp32-demo-board>`, `FTDI`_
-        `ESP-Prog`_, `FTDI`_, 编程板 (w/o ESP32)
-        `ESP32-MeshKit-Sense <https://github.com/espressif/esp-iot-solution/blob/master/documents/evaluation_boards/ESP32-MeshKit-Sense_guide_en.md#esp32-meshkit-sense-hardware-design-guidelines>`_, n/a, 搭配 `ESP-Prog`_ 使用
-        `ESP32-Sense Kit <https://github.com/espressif/esp-iot-solution/blob/master/documents/evaluation_boards/esp32_sense_kit_guide_en.md#guide-for-esp32-sense-development-kit>`_, n/a, 搭配 `ESP-Prog`_ 使用
+    :ref:`ESP32-DevKitC <esp-modules-and-boards-esp32-devkitc>`,  `CP210x`_
+    `ESP32-LyraT <https://www.espressif.com/en/products/hardware/esp32-lyrat>`_, `CP210x`_
+    `ESP32-LyraTD-MSC <https://www.espressif.com/en/products/hardware/esp32-lyratd-msc>`_, `CP210x`_
+    :ref:`ESP32-PICO-KIT <esp-modules-and-boards-esp32-pico-kit>`, `CP210x`_
+    :ref:`ESP-WROVER-KIT <esp-modules-and-boards-esp-wrover-kit>`, `FTDI`_
+    :ref:`ESP32 Demo Board <esp-modules-and-boards-esp32-demo-board>`, `FTDI`_
+    `ESP-Prog`_, `FTDI`_, Programmer board (w/o ESP32)
+    `ESP32-MeshKit-Sense <https://github.com/espressif/esp-iot-solution/blob/master/documents/evaluation_boards/ESP32-MeshKit-Sense_guide_en.md#esp32-meshkit-sense-hardware-design-guidelines>`_, n/a, Use with `ESP-Prog`_
+    `ESP32-Sense Kit <https://github.com/espressif/esp-iot-solution/blob/master/documents/evaluation_boards/esp32_sense_kit_guide_en.md#guide-for-esp32-sense-development-kit>`_, n/a, Use with `ESP-Prog`_
 
 .. _CP210x: https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers
-.. _FTDI: https://www.ftdichip.com/Drivers/VCP.htm
+.. _FTDI: http://www.ftdichip.com/Drivers/VCP.htm
 .. _ESP-Prog: https://github.com/espressif/esp-iot-solution/blob/master/documents/evaluation_boards/ESP-Prog_guide_en.md#introduction-to-the-esp-prog-board
 
-* CP210x: `CP210x USB 至 UART 桥 VCP 驱动程序 <https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers>`_
-* FTDI: `FTDI 虚拟 COM 端口驱动程序 <https://www.ftdichip.com/Drivers/VCP.htm>`_
+* CP210x: `CP210x USB to UART Bridge VCP Drivers <https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers>`_
+* FTDI: `FTDI Virtual COM Port Drivers <http://www.ftdichip.com/Drivers/VCP.htm>`_
 
-以上驱动仅供参考。一般情况下，当上述任一 {IDF_TARGET_NAME} 开发板与 PC 连接时，对应驱动程序应该已经被打包在操作系统中，并已经自动安装。
+以上驱动仅用于参考。正常情况下，当上述任一 ESP32 开发板与 PC 连接时，打包在操作系统中的驱动程序将会开始自动安装。
 
-在 Windows 上查看端口
----------------------
+查看端口（Windows 用户）
+------------------------
 
-检查 Windows 设备管理器中的 COM 端口列表。断开 {IDF_TARGET_NAME} 与 PC 的连接，然后重新连接，查看哪个端口从列表中消失后又再次出现。
+检查 Windows 设备管理器中的 COM 端口列表。断开 ESP32 与 PC 的连接，然后重连。查看从列表中消失后再次出现的是哪个端口。
 
 以下为 ESP32 DevKitC 和 ESP32 WROVER KIT 串口：
 
 .. figure:: ../../_static/esp32-devkitc-in-device-manager.png
     :align: center
-    :alt: 设备管理器中 ESP32-DevKitC 的 USB 至 UART 桥
+    :alt: Windows 设备管理器中 ESP32-DevKitC 的 USB 至 UART 桥
     :figclass: align-center
-
-    设备管理器中 ESP32-DevKitC 的 USB 至 UART 桥
+   
+    Windows 设备管理器中 ESP32-DevKitC 的 USB 至 UART 桥
 
 .. figure:: ../../_static/esp32-wrover-kit-in-device-manager.png
     :align: center
-    :alt: Windows 设备管理器中 ESP-WROVER-KIT 的两个 USB 串行端口
+    :alt: Two USB Serial Ports of ESP-WROVER-KIT in Windows Device Manager
     :figclass: align-center
 
     Windows 设备管理器中 ESP-WROVER-KIT 的两个 USB 串行端口
 
+查看端口（Linux 和 MacOS 用户）
+--------------------------------
 
-在 Linux 和 macOS 上查看端口
------------------------------
+查看 ESP32 开发板（或外部转串口适配器）的串口设备名称，请运行两次以下命令。首先，断开开发板或适配器，第一次运行命令；然后，连接开发板或适配器，第二次运行命令。其中，第二次运行命令后出现的端口即是 ESP32 对应的串口：
 
-查看 {IDF_TARGET_NAME} 开发板（或外部转串口适配器）的串口设备名称，请将以下命令运行两次。首先，断开开发板或适配器，首次运行以下命令；然后，连接开发板或适配器，再次运行以下命令。其中，第二次运行命令后出现的端口即是 {IDF_TARGET_NAME} 对应的串口：
-
-Linux::
-
+Linux ::
     ls /dev/tty*
 
-macOS::
-
+MacOS ::
     ls /dev/cu.*
 
-.. 注解::
+.. note::
+    MacOS 用户：若你没有看到串口，请检查你是否已按照《入门指南》安装了适用于你特定开发板的 USB/串口驱动程序。对于 MacOS High Sierra (10.13) 的用户，你可能还需要手动允许驱动程序的加载，具体可打开系统偏好设置-> 安全和隐私-> 通用，检查是否有信息显示：“来自开发人员的系统软件...”，其中开发人员的名称为 Silicon Labs 或 FTDI。
 
-    对于 macOS 用户：若你没有看到串口，请检查你是否已按照《入门指南》安装了适用于你特定开发板的 USB/串口驱动程序。对于 macOS High Sierra (10.13) 的用户，你可能还需要手动允许驱动程序的加载，具体可打开 ``系统偏好设置`` -> ``安全和隐私`` -> ``通用``，检查是否有信息显示：“来自开发人员的系统软件...”，其中开发人员的名称为 Silicon Labs 或 FTDI。
 
 .. _linux-dialout-group:
 
-在 Linux 中添加用户到 ``dialout``
------------------------------------
+将用户增加至 Linux 的 ``dialout`` 组
+------------------------------------
 
-当前登录用户应当可以通过 USB 对串口进行读写操作。在多数 Linux 版本中，您都可以通过以下命令，将用户添加到 ``dialout`` 组，从而获许读写权限::
+当前登录用户应当拥有通过 USB 对串口进行读写的权限。在多数 Linux 版本中，您都可以通过以下命令，将用户添加到 ``dialout`` 组，来获取读写权限::
 
     sudo usermod -a -G dialout $USER
 
 在 Arch Linux 中，需要通过以下命令将用户添加到 ``uucp`` 组中::
-
+    
     sudo usermod -a -G uucp $USER
 
-请重新登录，确保串口读写权限生效。
-
+请重新登录，确保串口读写权限可以生效。
 
 确认串口连接
-------------------------
+------------
 
-现在，请使用串口终端程序，查看重置 {IDF_TARGET_NAME} 后终端上是否有输出，从而验证串口连接是否可用。
+现在，请使用串口终端程序，验证串口连接是否可用。在本实例中，我们将使用 `PuTTY SSH Client <http://www.putty.org/>`_ 进行验证。该工具同时适用于 Windows 和 Linux 操作系统。您也可以使用其他串口程序，设置通信参数如下。
 
-
-Windows 和 Linux 操作系统
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-在本示例中，我们将使用 `PuTTY SSH Client <https://www.putty.org/>`_， `PuTTY SSH Client <https://www.putty.org/>`_ 既可用于 Windows 也可用于 Linux。你也可以使用其他串口程序并设置如下的通信参数。
-
-运行终端，配置在上述步骤中确认的串口：波特率 = 115200，数据位 = 8，停止位 = 1，奇偶校验 = N。以下截屏分别展示了如何在 Windows 和 Linux 中配置串口和上述通信参数（如 115200-8-1-N）。注意，这里一定要选择在上述步骤中确认的串口进行配置。
+运行终端，配置串口：波特率 = 115200，数据位 = 8，停止位 = 1，奇偶校验 = N。在 Windows 和 Linux 中配置串口和通信参数（如 115200-8-1-N）的截图如下。注意，这里一定要选择在上述步骤中确认的串口进行配置。
 
 .. figure:: ../../_static/putty-settings-windows.png
     :align: center
     :alt: 在 Windows 操作系统中使用 PuTTY 设置串口通信参数
     :figclass: align-center
-
+    
     在 Windows 操作系统中使用 PuTTY 设置串口通信参数
 
 .. figure:: ../../_static/putty-settings-linux.png
@@ -120,46 +107,7 @@ Windows 和 Linux 操作系统
 
     在 Linux 操作系统中使用 PuTTY 设置串口通信参数
 
-
-然后，请检查 {IDF_TARGET_NAME} 是否有打印日志。如有，请在终端打开串口进行查看。这里的日志内容取决于加载到 {IDF_TARGET_NAME} 的应用程序，请参考 `输出示例`_。
-
-
-.. 注解::
-
-   请在验证完串口通信正常后，关闭串口终端。如果您让终端一直保持打开的状态，之后上传固件时将无法访问串口。
-
-
-macOS 操作系统
-^^^^^^^^^^^^^^^^^
-
-macOS 提供了 **屏幕** 命令，因此您不用安装串口终端程序。
-
-- 参考 `在 Linux 和 macOS 上查看端口`_，运行以下命令::
-
-    ls /dev/cu.*
-
-- 您会看到类似如下输出::
-
-    /dev/cu.Bluetooth-Incoming-Port /dev/cu.SLAB_USBtoUART      /dev/cu.SLAB_USBtoUART7
-
-- 根据您连接到电脑上的开发板类型和数量，输出结果会有所不同。请选择开发板的设备名称，并运行以下命令::
-
-    screen /dev/cu.device_name 115200
-
-将 ``device_name`` 替换为运行 ``ls /dev/cu.*`` 后出现的设备串口号。
-
-- 您需要的正是 **屏幕** 显示的日志。日志内容取决于加载到 {IDF_TARGET_NAME} 的应用程序，请参考 `输出示例`_。请使用 Ctrl-A + \\ 键退出 **屏幕** 会话。
-
-.. 注解::
-
-   请在验证完串口通信正常后，关闭 **屏幕** 会话。如果直接关闭终端窗口而没有关闭 **屏幕**，之后上传固件时将无法访问串口。
-
-
-输出示例
-^^^^^^^^^^^
-
-以下是 {IDF_TARGET_NAME} 的一个日志示例。如果没看到任何输出，请尝试重置开发板。
-
+然后，请在终端打开串口，查看 ESP32 是否有任何打印，具体打印内容取决于加载至 ESP32 的程序。ESP32 打印示例如下所示：
 
 .. highlight:: none
 
@@ -184,15 +132,16 @@ macOS 提供了 **屏幕** 命令，因此您不用安装串口终端程序。
 
     ...
 
-如果打印出的日志是可读的（而不是乱码），则表示串口连接正常。此时，您可以继续进行安装，并最终将应用程序上载到 {IDF_TARGET_NAME}。
+如果打印出的日志是可读的（而不是乱码），则表示串口连接正常。此时，您可以继续进行安装，并最终将应用程序下载到 ESP32。
 
-.. 注解::
+.. note::
 
-   在某些串口接线方式下，在 {IDF_TARGET_NAME} 启动并开始打印串口日志前，需要在终端程序中禁用串口 RTS ＆ DTR 管脚。该问题仅存在于将 RTS ＆ DTR 管脚直接连接到 EN ＆ GPIO0 管脚上的情况，绝大多数开发板（包括乐鑫所有的开发板）都没有这个问题。更多详细信息，请参考 `esptool 文档`_。
+    在某些串口接线方式下，在 ESP32 启动并开始打印串口日志前，需要在终端程序中禁用串口 RTS ＆ DTR 引脚。该问题仅存在于将 RTS ＆ DTR 引脚直接连接到 EN ＆ GPIO0 引脚上的情况，绝大多数开发板（包括乐鑫所有的开发板）都没有这个问题。更多详细信息，参加 `esptool 文档`_ 。
 
+.. note::
 
-如您在安装 {IDF_TARGET_NAME} 硬件开发的软件环境时，从 :ref:`get-started-connect` 跳转到了这里，请从 :ref:`get-started-configure` 继续阅读。
+    验证完成后，请关闭串口终端。我们将在后续步骤中向 ESP32 下载新的固件，如果未关闭终端，则该应用程序则无法访问串口。
 
+如果您是在安装 ESP32 软件的过程中从 :ref:`get-started-connect` 章节跳转至此，请返回 :ref:`get-started-configure` 章节。
 
 .. _esptool 文档: https://github.com/espressif/esptool/wiki/ESP32-Boot-Mode-Selection#automatic-bootloader
-

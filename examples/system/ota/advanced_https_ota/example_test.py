@@ -1,8 +1,8 @@
 import re
 import os
-import struct
 import socket
-import http.server
+import BaseHTTPServer
+import SimpleHTTPServer
 from threading import Thread
 import ssl
 
@@ -95,33 +95,10 @@ def get_ca_cert(ota_image_dir):
     return server_file, key_file
 
 
-def https_request_handler():
-    """
-    Returns a request handler class that handles broken pipe exception
-    """
-    class RequestHandler(http.server.SimpleHTTPRequestHandler):
-        def finish(self):
-            try:
-                if not self.wfile.closed:
-                    self.wfile.flush()
-                    self.wfile.close()
-            except socket.error:
-                pass
-            self.rfile.close()
-
-        def handle(self):
-            try:
-                http.server.BaseHTTPRequestHandler.handle(self)
-            except socket.error:
-                pass
-
-    return RequestHandler
-
-
 def start_https_server(ota_image_dir, server_ip, server_port):
     server_file, key_file = get_ca_cert(ota_image_dir)
-    requestHandler = https_request_handler()
-    httpd = http.server.HTTPServer((server_ip, server_port), requestHandler)
+    httpd = BaseHTTPServer.HTTPServer((server_ip, server_port),
+                                      SimpleHTTPServer.SimpleHTTPRequestHandler)
 
     httpd.socket = ssl.wrap_socket(httpd.socket,
                                    keyfile=key_file,
@@ -139,18 +116,12 @@ def redirect_handler_factory(url):
     """
     Returns a request handler class that redirects to supplied `url`
     """
-    class RedirectHandler(http.server.SimpleHTTPRequestHandler):
+    class RedirectHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
             print("Sending resp, URL: " + url)
             self.send_response(301)
             self.send_header('Location', url)
             self.end_headers()
-
-        def handle(self):
-            try:
-                http.server.BaseHTTPRequestHandler.handle(self)
-            except socket.error:
-                pass
 
     return RedirectHandler
 
@@ -160,7 +131,8 @@ def start_redirect_server(ota_image_dir, server_ip, server_port, redirection_por
     server_file, key_file = get_ca_cert(ota_image_dir)
     redirectHandler = redirect_handler_factory("https://" + server_ip + ":" + str(redirection_port) + "/advanced_https_ota.bin")
 
-    httpd = http.server.HTTPServer((server_ip, server_port), redirectHandler)
+    httpd = BaseHTTPServer.HTTPServer((server_ip, server_port),
+                                      redirectHandler)
 
     httpd.socket = ssl.wrap_socket(httpd.socket,
                                    keyfile=key_file,
@@ -178,7 +150,7 @@ def test_examples_protocol_advanced_https_ota_example(env, extra_data):
       2. Fetch OTA image over HTTPS
       3. Reboot with the new OTA image
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     # Number of iterations to validate OTA
     iterations = 3
     server_port = 8001
@@ -188,6 +160,7 @@ def test_examples_protocol_advanced_https_ota_example(env, extra_data):
     binary_file = os.path.join(dut1.app.binary_path, bin_name)
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     if (get_server_status(host_ip, server_port) is False):
@@ -223,7 +196,7 @@ def test_examples_protocol_advanced_https_ota_example_truncated_bin(env, extra_d
       3. Fetch OTA image over HTTPS
       4. Check working of code if bin is truncated
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     server_port = 8001
     # Original binary file generated after compilation
     bin_name = "advanced_https_ota.bin"
@@ -234,14 +207,15 @@ def test_examples_protocol_advanced_https_ota_example_truncated_bin(env, extra_d
     truncated_bin_size = 64000
     # check and log bin size
     binary_file = os.path.join(dut1.app.binary_path, bin_name)
-    f = open(binary_file, "rb+")
-    fo = open(os.path.join(dut1.app.binary_path, truncated_bin_name), "wb+")
+    f = open(binary_file, "r+")
+    fo = open(os.path.join(dut1.app.binary_path, truncated_bin_name), "w+")
     fo.write(f.read(truncated_bin_size))
     fo.close()
     f.close()
     binary_file = os.path.join(dut1.app.binary_path, truncated_bin_name)
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     if (get_server_status(host_ip, server_port) is False):
@@ -274,7 +248,7 @@ def test_examples_protocol_advanced_https_ota_example_truncated_header(env, extr
       3. Fetch OTA image over HTTPS
       4. Check working of code if headers are not sent completely
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     server_port = 8001
     # Original binary file generated after compilation
     bin_name = "advanced_https_ota.bin"
@@ -284,14 +258,15 @@ def test_examples_protocol_advanced_https_ota_example_truncated_header(env, extr
     truncated_bin_size = 180
     # check and log bin size
     binary_file = os.path.join(dut1.app.binary_path, bin_name)
-    f = open(binary_file, "rb+")
-    fo = open(os.path.join(dut1.app.binary_path, truncated_bin_name), "wb+")
+    f = open(binary_file, "r+")
+    fo = open(os.path.join(dut1.app.binary_path, truncated_bin_name), "w+")
     fo.write(f.read(truncated_bin_size))
     fo.close()
     f.close()
     binary_file = os.path.join(dut1.app.binary_path, truncated_bin_name)
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     if (get_server_status(host_ip, server_port) is False):
@@ -324,7 +299,7 @@ def test_examples_protocol_advanced_https_ota_example_random(env, extra_data):
       3. Fetch OTA image over HTTPS
       4. Check working of code for random binary file
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     server_port = 8001
     # Random binary file to be generated
     random_bin_name = "random.bin"
@@ -332,15 +307,16 @@ def test_examples_protocol_advanced_https_ota_example_random(env, extra_data):
     random_bin_size = 32000
     # check and log bin size
     binary_file = os.path.join(dut1.app.binary_path, random_bin_name)
-    fo = open(binary_file, "wb+")
+    fo = open(binary_file, "w+")
     # First byte of binary file is always set to zero. If first byte is generated randomly,
     # in some cases it may generate 0xE9 which will result in failure of testcase.
-    fo.write(struct.pack("B", 0))
+    fo.write(str(0))
     for i in range(random_bin_size - 1):
-        fo.write(struct.pack("B", random.randrange(0,255,1)))
+        fo.write(str(random.randrange(0,255,1)))
     fo.close()
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     if (get_server_status(host_ip, server_port) is False):
@@ -372,13 +348,14 @@ def test_examples_protocol_advanced_https_ota_example_chunked(env, extra_data):
       2. Fetch OTA image over HTTPS
       3. Reboot with the new OTA image
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     # File to be downloaded. This file is generated after compilation
     bin_name = "advanced_https_ota.bin"
     # check and log bin size
     binary_file = os.path.join(dut1.app.binary_path, bin_name)
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     chunked_server = start_chunked_server(dut1.app.binary_path, 8070)
@@ -411,7 +388,7 @@ def test_examples_protocol_advanced_https_ota_example_redirect_url(env, extra_da
       2. Fetch OTA image over HTTPS
       3. Reboot with the new OTA image
     """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT)
+    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota")
     server_port = 8001
     # Port to which the request should be redirecetd
     redirection_server_port = 8081
@@ -421,6 +398,7 @@ def test_examples_protocol_advanced_https_ota_example_redirect_url(env, extra_da
     binary_file = os.path.join(dut1.app.binary_path, bin_name)
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("advanced_https_ota_bin_size", bin_size // 1024)
     # start test
     host_ip = get_my_ip()
     if (get_server_status(host_ip, server_port) is False):
@@ -448,69 +426,6 @@ def test_examples_protocol_advanced_https_ota_example_redirect_url(env, extra_da
     dut1.reset()
 
 
-@ttfw_idf.idf_example_test(env_tag="Example_8Mflash_Ethernet")
-def test_examples_protocol_advanced_https_ota_example_anti_rollback(env, extra_data):
-    """
-    Working of OTA when anti_rollback is enabled and security version of new image is less than current one.
-    Application should return with error message in this case.
-    steps: |
-      1. join AP
-      2. Generate binary file with lower security version
-      3. Fetch OTA image over HTTPS
-      4. Check working of anti_rollback feature
-    """
-    dut1 = env.get_dut("advanced_https_ota_example", "examples/system/ota/advanced_https_ota", dut_class=ttfw_idf.ESP32DUT, app_config_name='anti_rollback')
-    server_port = 8001
-    # Original binary file generated after compilation
-    bin_name = "advanced_https_ota.bin"
-    # Modified firmware image to lower security version in its header. This is to enable negative test case
-    anti_rollback_bin_name = "advanced_https_ota_lower_sec_version.bin"
-    # check and log bin size
-    binary_file = os.path.join(dut1.app.binary_path, bin_name)
-    file_size = os.path.getsize(binary_file)
-    f = open(binary_file, "rb+")
-    fo = open(os.path.join(dut1.app.binary_path, anti_rollback_bin_name), "wb+")
-    fo.write(f.read(file_size))
-    # Change security_version to 0 for negative test case
-    fo.seek(36)
-    fo.write(b'\x00')
-    fo.close()
-    f.close()
-    binary_file = os.path.join(dut1.app.binary_path, anti_rollback_bin_name)
-    bin_size = os.path.getsize(binary_file)
-    ttfw_idf.log_performance("advanced_https_ota_bin_size", "{}KB".format(bin_size // 1024))
-    # start test
-    host_ip = get_my_ip()
-    if (get_server_status(host_ip, server_port) is False):
-        thread1 = Thread(target=start_https_server, args=(dut1.app.binary_path, host_ip, server_port))
-        thread1.daemon = True
-        thread1.start()
-    dut1.start_app()
-    # Positive Case
-    dut1.expect("Loaded app from partition at offset", timeout=30)
-    try:
-        ip_address = dut1.expect(re.compile(r" eth ip: ([^,]+),"), timeout=30)
-        print("Connected to AP with IP: {}".format(ip_address))
-    except DUT.ExpectTimeout:
-        raise ValueError('ENV_TEST_FAILURE: Cannot connect to AP')
-    dut1.expect("Starting Advanced OTA example", timeout=30)
-
-    # Use originally generated image with secure_version=1
-    print("writing to device: {}".format("https://" + host_ip + ":" + str(server_port) + "/" + bin_name))
-    dut1.write("https://" + host_ip + ":" + str(server_port) + "/" + bin_name)
-    dut1.expect("Loaded app from partition at offset", timeout=60)
-    dut1.expect(re.compile(r" eth ip: ([^,]+),"), timeout=30)
-    dut1.expect("App is valid, rollback cancelled successfully", 30)
-
-    # Negative Case
-    dut1.expect("Starting Advanced OTA example", timeout=30)
-    # Use modified image with secure_version=0
-    print("writing to device: {}".format("https://" + host_ip + ":" + str(server_port) + "/" + anti_rollback_bin_name))
-    dut1.write("https://" + host_ip + ":" + str(server_port) + "/" + anti_rollback_bin_name)
-    dut1.expect("New firmware security version is less than eFuse programmed, 0 < 1", timeout=30)
-    os.remove(anti_rollback_bin_name)
-
-
 if __name__ == '__main__':
     test_examples_protocol_advanced_https_ota_example()
     test_examples_protocol_advanced_https_ota_example_chunked()
@@ -518,4 +433,3 @@ if __name__ == '__main__':
     test_examples_protocol_advanced_https_ota_example_truncated_bin()
     test_examples_protocol_advanced_https_ota_example_truncated_header()
     test_examples_protocol_advanced_https_ota_example_random()
-    test_examples_protocol_advanced_https_ota_example_anti_rollback()

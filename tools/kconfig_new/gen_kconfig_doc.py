@@ -7,7 +7,7 @@
 # generated, allowing options to be referenced in other documents
 # (using :ref:`CONFIG_FOO`)
 #
-# Copyright 2017-2020 Espressif Systems (Shanghai) PTE LTD
+# Copyright 2017-2018 Espressif Systems (Shanghai) PTE LTD
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
+import os
 import re
-import kconfiglib
+import sys
+
+try:
+    from . import kconfiglib
+except Exception:
+    sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+    import kconfiglib
 
 # Indentation to be used in the generated file
 INDENT = '    '
@@ -35,126 +42,12 @@ INITIAL_HEADING_LEVEL = 3
 MAX_HEADING_LEVEL = len(HEADING_SYMBOLS) - 1
 
 
-class ConfigTargetVisibility(object):
-    """
-    Determine the visibility of Kconfig options based on IDF targets. Note that other environment variables should not
-    imply invisibility and neither dependencies on visible options with default disabled state. This difference makes
-    it necessary to implement our own visibility and cannot use the visibility defined inside Kconfiglib.
-    """
-    def __init__(self, config, target):
-        # target actually is not necessary here because kconfiglib.expr_value() will evaluate it internally
-        self.config = config
-        self.visibility = dict()  # node name to (x, y) mapping where x is the visibility (True/False) and y is the
-        # name of the config which implies the visibility
-        self.target_env_var = 'IDF_TARGET'
-        self.direct_eval_set = frozenset([kconfiglib.EQUAL, kconfiglib.UNEQUAL, kconfiglib.LESS, kconfiglib.LESS_EQUAL,
-                                         kconfiglib.GREATER, kconfiglib.GREATER_EQUAL])
-
-    def _implies_invisibility(self, item):
-        if isinstance(item, tuple):
-            if item[0] == kconfiglib.NOT:
-                (invisibility, source) = self._implies_invisibility(item[1])
-                if source is not None and source.startswith(self.target_env_var):
-                    return (not invisibility, source)
-                else:
-                    # we want to be visible all configs which are not dependent on target variables,
-                    # e.g. "depends on XY" and "depends on !XY" as well
-                    return (False, None)
-            elif item[0] == kconfiglib.AND:
-                (invisibility, source) = self._implies_invisibility(item[1])
-                if invisibility:
-                    return (True, source)
-                (invisibility, source) = self._implies_invisibility(item[2])
-                if invisibility:
-                    return (True, source)
-                return (False, None)
-            elif item[0] == kconfiglib.OR:
-                implication_list = [self._implies_invisibility(item[1]), self._implies_invisibility(item[2])]
-                if all([implies for (implies, _) in implication_list]):
-                    source_list = [s for (_, s) in implication_list if s.startswith(self.target_env_var)]
-                    if len(set(source_list)) != 1:  # set removes the duplicates
-                        print('[WARNING] list contains targets: {}'.format(source_list))
-                    return (True, source_list[0])
-                return (False, None)
-            elif item[0] in self.direct_eval_set:
-                def node_is_invisible(item):
-                    return all([node.prompt is None for node in item.nodes])
-                if node_is_invisible(item[1]) or node_is_invisible(item[1]):
-                    # it makes no sense to call self._implies_invisibility() here because it won't generate any useful
-                    # "source"
-                    return (not kconfiglib.expr_value(item), None)
-                else:
-                    # expressions with visible configs can be changed to make the item visible
-                    return (False, None)
-            else:
-                raise RuntimeError('Unimplemented operation in {}'.format(item))
-        else:  # Symbol or Choice
-            vis_list = [self._visible(node) for node in item.nodes]
-            if len(vis_list) > 0 and all([not visible for (visible, _) in vis_list]):
-                source_list = [s for (_, s) in vis_list if s is not None and s.startswith(self.target_env_var)]
-                if len(set(source_list)) != 1:  # set removes the duplicates
-                    print('[WARNING] list contains targets: {}'.format(source_list))
-                return (True, source_list[0])
-
-            if item.name.startswith(self.target_env_var):
-                return (not kconfiglib.expr_value(item), item.name)
-
-            if len(vis_list) == 1:
-                (visible, source) = vis_list[0]
-                if visible:
-                    return (False, item.name)  # item.name is important here in case the result will be inverted: if
-                    # the dependency is on another config then it can be still visible
-
-            return (False, None)
-
-    def _visible(self, node):
-        if isinstance(node.item, kconfiglib.Symbol) or isinstance(node.item, kconfiglib.Choice):
-            dependencies = node.item.direct_dep  # "depends on" for configs
-            name_id = node.item.name
-            simple_def = len(node.item.nodes) <= 1  # defined only in one source file
-            # Probably it is not necessary to check the default statements.
-        else:
-            dependencies = node.visibility  # "visible if" for menu
-            name_id = node.prompt[0]
-            simple_def = False  # menus can be defined with the same name at multiple locations and they don't know
-            # about each other like configs through node.item.nodes. Therefore, they cannot be stored and have to be
-            # re-evaluated always.
-
-        try:
-            (visib, source) = self.visibility[name_id]
-        except KeyError:
-            def invert_first_arg(_tuple):
-                return (not _tuple[0], _tuple[1])
-
-            (visib, source) = self._visible(node.parent) if node.parent else (True, None)
-
-            if visib:
-                (visib, source) = invert_first_arg(self._implies_invisibility(dependencies))
-
-            if simple_def:
-                # Configs defined at multiple places are not stored because they could have different visibility based
-                # on different targets. kconfiglib.expr_value() will handle the visibility.
-                self.visibility[name_id] = (visib, source)
-
-        return (visib, source)  # not used in "finally" block because failure messages from _implies_invisibility are
-        # this way more understandable
-
-    def visible(self, node):
-        if not node.prompt:
-            # don't store this in self.visibility because don't want to stop at invisible nodes when recursively
-            # searching for invisible targets
-            return False
-
-        return self._visible(node)[0]
-
-
-def write_docs(config, visibility, filename):
+def write_docs(config, filename):
     """ Note: writing .rst documentation ignores the current value
     of any items. ie the --config option can be ignored.
     (However at time of writing it still needs to be set to something...) """
     with open(filename, "w") as f:
-        for node in config.node_iter():
-            write_menu_item(f, node, visibility)
+        config.walk_menu(lambda node: write_menu_item(f, node))
 
 
 def node_is_menu(node):
@@ -214,73 +107,18 @@ def format_rest_text(text, indent):
     return text
 
 
-def _minimize_expr(expr, visibility):
-    def expr_nodes_invisible(e):
-        return hasattr(e, 'nodes') and len(e.nodes) > 0 and all(not visibility.visible(i) for i in e.nodes)
+def node_should_write(node):
+    if not node.prompt:
+        return False  # Don't do anything for invisible menu items
 
-    if isinstance(expr, tuple):
-        if expr[0] == kconfiglib.NOT:
-            new_expr = _minimize_expr(expr[1], visibility)
-            return kconfiglib.Kconfig.y if new_expr == kconfiglib.Kconfig.n else new_expr
-        else:
-            new_expr1 = _minimize_expr(expr[1], visibility)
-            new_expr2 = _minimize_expr(expr[2], visibility)
-            if expr[0] == kconfiglib.AND:
-                if new_expr1 == kconfiglib.Kconfig.n or new_expr2 == kconfiglib.Kconfig.n:
-                    return kconfiglib.Kconfig.n
-                if new_expr1 == kconfiglib.Kconfig.y:
-                    return new_expr2
-                if new_expr2 == kconfiglib.Kconfig.y:
-                    return new_expr1
-            elif expr[0] == kconfiglib.OR:
-                if new_expr1 == kconfiglib.Kconfig.y or new_expr2 == kconfiglib.Kconfig.y:
-                    return kconfiglib.Kconfig.y
-                if new_expr1 == kconfiglib.Kconfig.n:
-                    return new_expr2
-                if new_expr2 == kconfiglib.Kconfig.n:
-                    return new_expr1
-            elif expr[0] == kconfiglib.EQUAL:
-                if not isinstance(new_expr1, type(new_expr2)):
-                    return kconfiglib.Kconfig.n
-                if new_expr1 == new_expr2:
-                    return kconfiglib.Kconfig.y
-            elif expr[0] == kconfiglib.UNEQUAL:
-                if not isinstance(new_expr1, type(new_expr2)):
-                    return kconfiglib.Kconfig.y
-                if new_expr1 != new_expr2:
-                    return kconfiglib.Kconfig.n
-            else:  # <, <=, >, >=
-                if not isinstance(new_expr1, type(new_expr2)):
-                    return kconfiglib.Kconfig.n  # e.g "True < 2"
+    if isinstance(node.parent.item, kconfiglib.Choice):
+        return False  # Skip choice nodes, they are handled as part of the parent (see below)
 
-                if expr_nodes_invisible(new_expr1) or expr_nodes_invisible(new_expr2):
-                    return kconfiglib.Kconfig.y if kconfiglib.expr_value(expr) else kconfiglib.Kconfig.n
-
-            return (expr[0], new_expr1, new_expr2)
-
-    if (not kconfiglib.expr_value(expr) and len(expr.config_string) == 0 and expr_nodes_invisible(expr)):
-        # nodes which are invisible
-        # len(expr.nodes) > 0 avoids constant symbols without actual node definitions, e.g. integer constants
-        # len(expr.config_string) == 0 avoids hidden configs which reflects the values of choices
-        return kconfiglib.Kconfig.n
-
-    if (kconfiglib.expr_value(expr) and len(expr.config_string) > 0 and expr_nodes_invisible(expr)):
-        # hidden config dependencies which will be written to sdkconfig as enabled ones.
-        return kconfiglib.Kconfig.y
-
-    if any(node.item.name.startswith(visibility.target_env_var) for node in expr.nodes):
-        # We know the actual values for IDF_TARGETs
-        return kconfiglib.Kconfig.y if kconfiglib.expr_value(expr) else kconfiglib.Kconfig.n
-
-    return expr
+    return True
 
 
-def write_menu_item(f, node, visibility):
-    def is_choice(node):
-        """ Skip choice nodes, they are handled as part of the parent (see below) """
-        return isinstance(node.parent.item, kconfiglib.Choice)
-
-    if is_choice(node) or not visibility.visible(node):
+def write_menu_item(f, node):
+    if not node_should_write(node):
         return
 
     try:
@@ -312,7 +150,6 @@ def write_menu_item(f, node, visibility):
             # each line are stripped by kconfiglib. We need to re-indent the text
             # to produce valid ReST.
             f.write(format_rest_text(node.help, INDENT))
-            f.write('\n')
     except AttributeError:
         pass  # No help
 
@@ -330,70 +167,21 @@ def write_menu_item(f, node, visibility):
 
         f.write('\n\n')
 
-    if isinstance(node.item, kconfiglib.Symbol):
-        def _expr_str(sc):
-            if sc.is_constant or not sc.nodes or sc.choice:
-                return '{}'.format(sc.name)
-            return ':ref:`%s%s`' % (sc.kconfig.config_prefix, sc.name)
-
-        range_strs = []
-        for low, high, cond in node.item.ranges:
-            cond = _minimize_expr(cond, visibility)
-            if cond == kconfiglib.Kconfig.n:
-                continue
-            if not isinstance(cond, tuple) and cond != kconfiglib.Kconfig.y:
-                if len(cond.nodes) > 0 and all(not visibility.visible(i) for i in cond.nodes):
-                    if not kconfiglib.expr_value(cond):
-                        continue
-            range_str = '%s- from %s to %s' % (INDENT * 2, low.str_value, high.str_value)
-            if cond != kconfiglib.Kconfig.y and not kconfiglib.expr_value(cond):
-                range_str += ' if %s' % kconfiglib.expr_str(cond, _expr_str)
-            range_strs.append(range_str)
-        if len(range_strs) > 0:
-            f.write('%sRange:\n' % INDENT)
-            f.write('\n'.join(range_strs))
-            f.write('\n\n')
-
-        default_strs = []
-        for default, cond in node.item.defaults:
-            cond = _minimize_expr(cond, visibility)
-            if cond == kconfiglib.Kconfig.n:
-                continue
-            if not isinstance(cond, tuple) and cond != kconfiglib.Kconfig.y:
-                if len(cond.nodes) > 0 and all(not visibility.visible(i) for i in cond.nodes):
-                    if not kconfiglib.expr_value(cond):
-                        continue
-            # default.type is mostly UNKNOWN so it cannot be used reliably for detecting the type
-            d = default.str_value
-            if d in ['y', 'Y']:
-                d = 'Yes (enabled)'
-            elif d in ['n', 'N']:
-                d = 'No (disabled)'
-            elif re.search(r'[^0-9a-fA-F]', d):  # simple string detection: if it not a valid number
-                d = '"%s"' % d
-            default_str = '%s- %s' % (INDENT * 2, d)
-            if cond != kconfiglib.Kconfig.y and not kconfiglib.expr_value(cond):
-                default_str += ' if %s' % kconfiglib.expr_str(cond, _expr_str)
-            default_strs.append(default_str)
-        if len(default_strs) > 0:
-            f.write('%sDefault value:\n' % INDENT)
-            f.write('\n'.join(default_strs))
-            f.write('\n\n')
-
     if is_menu:
         # enumerate links to child items
-        child_list = []
+        first = True
         child = node.list
         while child:
-            if not is_choice(child) and child.prompt and visibility.visible(child):
-                child_list.append((child.prompt[0], get_link_anchor(child)))
+            try:
+                if node_should_write(child):
+                    if first:
+                        f.write("Contains:\n\n")
+                        first = False
+                    f.write('- :ref:`%s`\n' % get_link_anchor(child))
+            except AttributeError:
+                pass
             child = child.next
-        if len(child_list) > 0:
-            f.write("Contains:\n\n")
-            sorted_child_list = sorted(child_list, key=lambda pair: pair[0].lower())
-            ref_list = ['- :ref:`{}`'.format(anchor) for _, anchor in sorted_child_list]
-            f.write('\n'.join(ref_list))
-            f.write('\n\n')
+        f.write('\n')
 
 
 if __name__ == '__main__':

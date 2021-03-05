@@ -7,12 +7,12 @@ Wi-Fi
 =====
 
 .. toctree::
-    :maxdepth: 1
+   :maxdepth: 1
 
-    Wi-Fi <esp_wifi>
-    SmartConfig <esp_smartconfig>
-    ESP-NOW <esp_now>
-    ESP Mesh <esp_mesh>
+   Wi-Fi <esp_wifi>
+   Smart Config <esp_smartconfig>
+   ESP-NOW <esp_now>
+   ESP Mesh <esp_mesh>
 
 Code examples for the Wi-Fi API are provided in the :example:`wifi` directory of ESP-IDF examples.
 
@@ -36,18 +36,9 @@ IP Network Layer
 .. toctree::
    :maxdepth: 1
 
-   ESP-NETIF <esp_netif.rst>
-
-.. toctree::
-    :hidden:
-
-    TCP/IP Adapter Migration Guide <tcpip_adapter_migration.rst>
-    ESP-NETIF Custom I/O Driver <esp_netif_driver.rst>
+   TCP/IP Adapter <tcpip_adapter.rst>
 
 Code examples for TCP/IP socket APIs are provided in the :example:`protocols/sockets` directory of ESP-IDF examples.
-
-The TCP/IP Adapter (legacy network interface library) has been deprecated, please consult the :doc:`/api-reference/network/tcpip_adapter_migration`
-to update existing IDF applications.
 
 Application Layer 
 =================

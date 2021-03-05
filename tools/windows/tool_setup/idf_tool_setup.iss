@@ -1,11 +1,11 @@
-; Copyright 2019-2020 Espressif Systems (Shanghai) CO LTD
+; Copyright 2019 Espressif Systems (Shanghai) PTE LTD
 ; SPDX-License-Identifier: Apache-2.0
 
 #pragma include __INCLUDE__ + ";" + ReadReg(HKLM, "Software\Mitrich Software\Inno Download Plugin", "InstallDir")
 #include <idp.iss>
 
 #define MyAppName "ESP-IDF Tools"
-#define MyAppVersion "2.3"
+#define MyAppVersion "2.1"
 #define MyAppPublisher "Espressif Systems (Shanghai) Co. Ltd."
 #define MyAppURL "https://github.com/espressif/esp-idf"
 
@@ -51,7 +51,7 @@ ChangesEnvironment=yes
 WizardStyle=modern
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl,Languages/idf_tool_en-US.islu"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Dirs]
 Name: "{app}\dist"
@@ -65,52 +65,31 @@ Source: "..\..\idf_tools.py"; DestDir: "{app}"; DestName: "idf_tools_fallback.py
 Source: "tools_fallback.json"; DestDir: "{app}"; DestName: "tools_fallback.json"
 Source: "idf_cmd_init.bat"; DestDir: "{app}"
 Source: "dist\*"; DestDir: "{app}\dist"
-; Helper Python files for sanity check of Python environment - used by system_check_page
-Source: "system_check\system_check_download.py"; Flags: dontcopy
-Source: "system_check\system_check_subprocess.py"; Flags: dontcopy
-Source: "system_check\system_check_virtualenv.py"; Flags: dontcopy
-; Helper PowerShell scripts for managing exceptions in Windows Defender
-Source: "tools_WD_excl.ps1"; DestDir: "{app}\dist"
-Source: "tools_WD_clean.ps1"; DestDir: "{app}\dist"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\dist"
 Type: filesandordirs; Name: "{app}\releases"
 Type: filesandordirs; Name: "{app}\tools"
 Type: filesandordirs; Name: "{app}\python_env"
-Type: files; Name: "{group}\{#IDFCmdExeShortcutFile}"
-Type: files; Name: "{autodesktop}\{#IDFCmdExeShortcutFile}"
-
-[Tasks]
-Name: createlnk; Description: "Create Start Menu shortcut for the ESP-IDF Tools Command Prompt";
-Name: createdsk; Description: "Create Desktop shortcut for the ESP-IDF Tools Command Prompt";
-; WD registration checkbox is identified by 'Windows Defender' substring anywhere in its caption, not by the position index in WizardForm.TasksList.Items
-; Please, keep this in mind when making changes to the item's description - WD checkbox is to be disabled on systems without the Windows Defender installed
-Name: wdexcl; Description: "Register the ESP-IDF Tools executables as Windows Defender exclusions (improves compilation speed, requires elevation)";
-Name: idf_tools_use_mirror; Description: "Use Espressif download server instead of downloading tool packages from Github"; Flags: unchecked;
 
 [Run]
 Filename: "{app}\dist\{#PythonInstallerName}"; Parameters: "/passive PrependPath=1 InstallLauncherAllUsers=0 Include_dev=0 Include_tcltk=0 Include_launcher=0 Include_test=0 Include_doc=0"; Description: "Installing Python"; Check: PythonInstallRequired
 Filename: "{app}\dist\{#GitInstallerName}"; Parameters: "/silent /tasks="""" /norestart"; Description: "Installing Git"; Check: GitInstallRequired
 Filename: "{group}\{#IDFCmdExeShortcutFile}"; Flags: postinstall shellexec; Description: "Run ESP-IDF Command Prompt (cmd.exe)"; Check: InstallationSuccessful
 
-[UninstallRun]
-Filename: "powershell.exe"; \
-  Parameters: "-ExecutionPolicy Bypass -File ""{app}\dist\tools_WD_clean.ps1"" -RmExclPath ""{app}"""; \
-  WorkingDir: {app}; Flags: runhidden
-
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "IDF_TOOLS_PATH"; \
     ValueData: "{app}"; Flags: preservestringtype createvalueifdoesntexist uninsdeletevalue deletevalue;
 
 [Code]
+
+
 #include "utils.iss.inc"
 #include "choice_page.iss.inc"
 #include "cmdline_page.iss.inc"
 #include "idf_page.iss.inc"
 #include "git_page.iss.inc"
 #include "python_page.iss.inc"
-#include "system_check_page.iss.inc"
 #include "idf_download_page.iss.inc"
 #include "idf_setup.iss.inc"
 #include "summary.iss.inc"

@@ -18,52 +18,23 @@
 #include <stdint.h>
 #include <esp_partition.h>
 #include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "unity.h"
-#include "soc/soc_caps.h"
+
 /* include performance pass standards header file */
 #include "idf_performance.h"
-#include "idf_performance_target.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* For performance check with unity test on IDF */
 /* These macros should only be used with ESP-IDF.
  * To use performance check, we need to first define pass standard in idf_performance.h.
  */
-
-//macros call this to expand an argument instead of directly converting into str
-#define PERFORMANCE_STR(s)   #s
-//macros call this to contact strings after expanding them
-#define PERFORMANCE_CON(a, b) _PERFORMANCE_CON(a, b)
-#define _PERFORMANCE_CON(a, b) a##b
-
 #define TEST_PERFORMANCE_LESS_THAN(name, value_fmt, value)  do { \
-    printf("[Performance][" PERFORMANCE_STR(name) "]: "value_fmt"\n", value); \
-    TEST_ASSERT(value < PERFORMANCE_CON(IDF_PERFORMANCE_MAX_, name)); \
+    printf("[Performance]["#name"]: "value_fmt"\n", value); \
+    TEST_ASSERT(value < IDF_PERFORMANCE_MAX_##name); \
 } while(0)
 
 #define TEST_PERFORMANCE_GREATER_THAN(name, value_fmt, value)  do { \
-    printf("[Performance][" PERFORMANCE_STR(name) "]: "value_fmt"\n", value); \
-    TEST_ASSERT(value > PERFORMANCE_CON(IDF_PERFORMANCE_MIN_, name)); \
+    printf("[Performance]["#name"]: "value_fmt"\n", value); \
+    TEST_ASSERT(value > IDF_PERFORMANCE_MIN_##name); \
 } while(0)
-
-/* Macros to be used when performance is calculated using the cache compensated timer
-   will not assert if ccomp not supported */
-#if SOC_CCOMP_TIMER_SUPPORTED
-#define TEST_PERFORMANCE_CCOMP_GREATER_THAN(name, value_fmt, value) \
-    TEST_PERFORMANCE_GREATER_THAN(name, value_fmt, value)
-#define TEST_PERFORMANCE_CCOMP_LESS_THAN(name, value_fmt, value) \
-    TEST_PERFORMANCE_LESS_THAN(name, value_fmt, value)
-#else
-#define TEST_PERFORMANCE_CCOMP_GREATER_THAN(name, value_fmt, value) \
-    printf("[Performance][" PERFORMANCE_STR(name) "]: "value_fmt"\n", value);
-#define TEST_PERFORMANCE_CCOMP_LESS_THAN(name, value_fmt, value) \
-    printf("[Performance][" PERFORMANCE_STR(name) "]: "value_fmt"\n", value);
-#endif //SOC_CCOMP_TIMER_SUPPORTED
 
 
 /* @brief macro to print IDF performance
@@ -83,7 +54,7 @@ extern "C" {
 /* Return the 'flash_test' custom data partition (type 0x55)
    defined in the custom partition table.
 */
-const esp_partition_t *get_test_data_partition(void);
+const esp_partition_t *get_test_data_partition();
 
 /**
  * @brief Initialize reference clock
@@ -91,26 +62,26 @@ const esp_partition_t *get_test_data_partition(void);
  * Reference clock provides timestamps at constant 1 MHz frequency, even when
  * the APB frequency is changing.
  */
-void ref_clock_init(void);
+void ref_clock_init();
 
 /**
  * @brief Deinitialize reference clock
  */
-void ref_clock_deinit(void);
+void ref_clock_deinit();
 
 
 /**
  * @brief Get reference clock timestamp
  * @return number of microseconds since the reference clock was initialized
  */
-uint64_t ref_clock_get(void);
+uint64_t ref_clock_get();
 
 /**
  * @brief Entry point of the test application
  *
  * Starts Unity test runner in a separate task and returns.
  */
-void test_main(void);
+void test_main();
 
 /**
  * @brief Reset automatic leak checking which happens in unit tests.
@@ -267,6 +238,7 @@ esp_err_t test_utils_set_leak_level(size_t leak_level, esp_type_leak_t type, esp
 size_t test_utils_get_leak_level(esp_type_leak_t type, esp_comp_leak_t component);
 
 
+
 typedef struct test_utils_exhaust_memory_record_s *test_utils_exhaust_memory_rec;
 
 /**
@@ -292,13 +264,3 @@ test_utils_exhaust_memory_rec test_utils_exhaust_memory(uint32_t caps, size_t li
 void test_utils_free_exhausted_memory(test_utils_exhaust_memory_rec rec);
 
 
-/**
- * @brief Delete task ensuring dynamic memory (for stack, tcb etc.) gets freed up immediately
- *
- * @param[in] thandle    Handle of task to be deleted (should not be NULL or self handle)
- */
-void test_utils_task_delete(TaskHandle_t thandle);
-
-#ifdef __cplusplus
-}
-#endif

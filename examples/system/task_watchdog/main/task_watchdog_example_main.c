@@ -42,7 +42,7 @@ void reset_task(void *arg)
     }
 }
 
-void app_main(void)
+void app_main()
 {
     printf("Initialize TWDT\n");
     //Initialize or reinitialize TWDT

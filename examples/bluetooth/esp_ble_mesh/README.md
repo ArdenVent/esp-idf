@@ -1,6 +1,6 @@
 # ESP-BLE-MESH Examples
 
-[ESP-BLE-MESH](../../../components/bt/esp_ble_mesh/) is the official Bluetooth® Mesh stack of Espressif Systems. We will provide long-term support for new features, performance optimization, etc.
+[ESP-BLE-MESH]($IDF_PATH/components/bt/esp_ble_mesh/) is the official Bluetooth® Mesh stack of Espressif Systems. We will provide long-term support for new features, performance optimization, etc.
 
 Please help note that breaking changes may be introduced into ESP-BLE-MESH on [minor IDF versions](https://docs.espressif.com/projects/esp-idf/en/latest/versions.html).
 
@@ -14,23 +14,35 @@ This directory includes examples to demonstrate ESP-BLE-MESH functionality based
 
 This example demonstrates how ESP-BLE-MESH uses Console for message transmitting/receiving tests.
 
+#### ble_mesh_node
+
+This example shows how ESP32 acts as a BLE Mesh Node and sends vendor messages for testing.
+
+See [ble_mesh_node](ble_mesh_console/ble_mesh_node) folder for more details.
+
+#### ble_mesh_provisioner
+
+This example shows how ESP32 acts as a BLE Mesh Provisioner and sends vendor messages for testing.
+
+See [ble_mesh_provisioner](ble_mesh_console/ble_mesh_provisioner) folder for more details.
+
 ## ble_mesh_fast_provision
 
 This example illustrates the solution of ESP-BLE-MESH Fast Provisioning.
 
-#### fast_prov_client
+#### ble_mesh_fast_prov_client
 
 This example shows how ESP32, acting as a BLE Mesh Fast Provisioning Client, provisions other unprovisioned devices and then controls the nodes.
 
-See [fast_prov_client](ble_mesh_fast_provision/fast_prov_client) folder for more details.
+See [ble_mesh_fast_prov_client](ble_mesh_fast_provision/ble_mesh_fast_prov_client) folder for more details.
 
-#### fast_prov_server
+#### ble_mesh_fast_prov_server
 
 This example illustrates the process that:
 1. ESP32 as a BLE Mesh Fast Provisioning Server is provisioned into a node;
 2. ESP32 as a Temporary Provisioner provisions other unprovisioned devices.
 
-See [fast_prov_server](ble_mesh_fast_provision/fast_prov_server) folder for more details.
+See [ble_mesh_fast_prov_server](ble_mesh_fast_provision/ble_mesh_fast_prov_server) folder for more details.
 
 ## ble_mesh_node
 

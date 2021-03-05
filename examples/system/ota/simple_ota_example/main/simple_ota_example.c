@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_event.h"
+#include "esp_event_loop.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
@@ -29,7 +30,7 @@ static const char *TAG = "simple_ota_example";
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_ca_cert_pem_end");
 
-#define OTA_URL_SIZE 256
+#define OTA_URL_SIZE 256 
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -98,7 +99,7 @@ void simple_ota_example_task(void *pvParameter)
     }
 }
 
-void app_main(void)
+void app_main()
 {
     // Initialize NVS.
     esp_err_t err = nvs_flash_init();
@@ -112,7 +113,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
-    ESP_ERROR_CHECK(esp_netif_init());
+    tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.

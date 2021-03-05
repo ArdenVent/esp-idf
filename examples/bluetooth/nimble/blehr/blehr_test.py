@@ -19,12 +19,8 @@ import os
 import re
 import threading
 import traceback
+import Queue
 import subprocess
-
-try:
-    import Queue
-except ImportError:
-    import queue as Queue
 
 from tiny_test_fw import Utility
 import ttfw_idf
@@ -110,12 +106,13 @@ def test_example_app_ble_hr(env, extra_data):
     subprocess.check_output(['hciconfig','hci0','reset'])
 
     # Acquire DUT
-    dut = env.get_dut("blehr", "examples/bluetooth/nimble/blehr", dut_class=ttfw_idf.ESP32DUT)
+    dut = env.get_dut("blehr", "examples/bluetooth/nimble/blehr")
 
     # Get binary file
     binary_file = os.path.join(dut.app.binary_path, "blehr.bin")
     bin_size = os.path.getsize(binary_file)
     ttfw_idf.log_performance("blehr_bin_size", "{}KB".format(bin_size // 1024))
+    ttfw_idf.check_performance("blehr_bin_size", bin_size // 1024)
 
     # Upload binary and start testing
     Utility.console_log("Starting blehr simple example test app")

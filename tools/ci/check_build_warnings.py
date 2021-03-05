@@ -6,11 +6,11 @@
 # log files for every build.
 # Exits with a non-zero exit code if any warning is found.
 
+import os
+import sys
 import argparse
 import logging
-import os
 import re
-import sys
 
 try:
     from find_build_apps import BuildItem, setup_logging
@@ -18,7 +18,7 @@ except ImportError:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from find_build_apps import BuildItem, setup_logging
 
-WARNING_REGEX = re.compile(r"(?:error|warning)[^\w]", re.MULTILINE | re.IGNORECASE)
+WARNING_REGEX = r"error|warning"
 
 IGNORE_WARNS = [
     re.compile(r_str) for r_str in [
@@ -29,15 +29,12 @@ IGNORE_WARNS = [
         r"reassigning to symbol",
         r"changes choice state",
         r"crosstool_version_check\.cmake",
-        r"CryptographyDeprecationWarning",
-        r"Python 3 versions older than 3.6 are not supported.",
-        r"Support for Python 2 is deprecated and will be removed in future versions.",
     ]
 ]
 
 
 def line_has_warnings(line):  # type: (str) -> bool
-    if not WARNING_REGEX.search(line):
+    if not re.search(WARNING_REGEX, line):
         return False
 
     has_warnings = True
@@ -73,9 +70,10 @@ def main():
     setup_logging(args)
 
     build_items = [BuildItem.from_json(line) for line in args.build_list]
+
     if not build_items:
-        logging.warning("Empty build list")
-        SystemExit(0)
+        logging.error("Empty build list!")
+        raise SystemExit(1)
 
     found_warnings = 0
     for build_item in build_items:

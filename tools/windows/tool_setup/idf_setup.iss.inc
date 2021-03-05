@@ -1,4 +1,4 @@
-{ Copyright 2019-2020 Espressif Systems (Shanghai) CO LTD
+{ Copyright 2019 Espressif Systems (Shanghai) PTE LTD
   SPDX-License-Identifier: Apache-2.0 }
 
 { ------------------------------ Downloading ESP-IDF ------------------------------ }
@@ -54,7 +54,7 @@ begin
   if IDFZIPFileVersion <> '' then
   begin
     Url := 'https://github.com/espressif/esp-idf/releases/download/' + IDFZIPFileVersion + '/esp-idf-' + IDFZIPFileVersion + '.zip';
-    MirrorUrl := 'https://dl.espressif.com/github_assets/espressif/esp-idf/releases/download/' + IDFZIPFileVersion + '/esp-idf-' + IDFZIPFileVersion + '.zip';
+    MirrorUrl := 'https://dl.espressif.com/dl/esp-idf/releases/esp-idf-' + IDFZIPFileVersion + '.zip';
     IDFZIPFileName := ExpandConstant('{app}\releases\esp-idf-' + IDFZIPFileVersion + '.zip')
     if not FileExists(IDFZIPFileName) then
     begin
@@ -87,25 +87,7 @@ begin
   CmdLine := GitExecutablePath + ' -C ' + Path + ' submodule foreach git repack -d -a'
   DoCmdlineInstall('Finishing ESP-IDF installation', 'Re-packing the submodules', CmdLine);
 
-  FindFileRecursive(Path + '\.git', 'alternates', @RemoveAlternatesFile);
-end;
-
-{
-  Run git config fileMode is repairing problem when git repo was zipped on Linux and extracted on Windows.
-  The repo and submodules are marked as dirty which confuses users that fresh installation already contains changes.
-  More information: https://mirrors.edge.kernel.org/pub/software/scm/git/docs/git-config.html
-}
-procedure GitRepoFixFileMode(Path: String);
-var
-  CmdLine: String;
-begin
-  CmdLine := GitExecutablePath + ' -C ' + Path + ' config --local core.fileMode false';
-  Log('Setting core.fileMode on repository: ' + CmdLine);
-  DoCmdlineInstall('Finishing ESP-IDF installation', 'Updating fileMode', CmdLine);
-
-  Log('Setting core.fileMode on repository for submodules: ' + CmdLine);
-  CmdLine := GitExecutablePath + ' -C ' + Path + ' submodule foreach --recursive git config --local core.fileMode false';
-  DoCmdlineInstall('Finishing ESP-IDF installation', 'Updating fileMode in submodules', CmdLine);
+  FindFileRecusive(Path + '\.git', 'alternates', @RemoveAlternatesFile);
 end;
 
 { Run git reset --hard in the repo and in the submodules, to fix the newlines. }
@@ -140,6 +122,7 @@ var
   IDFTempPath: String;
   IDFPath: String;
   NeedToClone: Boolean;
+  Res: Boolean;
 
 begin
   IDFPath := IDFDownloadPath;
@@ -185,7 +168,7 @@ begin
       GitRepoDissociate(IDFPath);
 
   end else begin
-    Log('Copying ' + IDFTempPath + ' to ' + IDFPath);
+    Log('Moving ' + IDFTempPath + ' to ' + IDFPath);
     if DirExists(IDFPath) then
     begin
       if not DirIsEmpty(IDFPath) then
@@ -193,34 +176,25 @@ begin
         MsgBox('Destination directory exists and is not empty: ' + IDFPath, mbError, MB_OK);
         RaiseException('Failed to copy ESP-IDF')
       end;
+
+      Res := RemoveDir(IDFPath);
+      if not Res then
+      begin
+        MsgBox('Failed to remove destination directory: ' + IDFPath, mbError, MB_OK);
+        RaiseException('Failed to copy ESP-IDF')
+      end;
     end;
-    { If cmd.exe command argument starts with a quote, the first and last quote chars in the command
-      will be removed by cmd.exe.
-      Keys explanation: /s+/e includes all subdirectories, /i assumes that destination is a directory,
-      /h copies hidden files, /q disables file name logging (making copying faster!)
-    }
-    CmdLine := ExpandConstant('cmd.exe /c ""xcopy" /s /e /i /h /q "' + IDFTempPath + '" "' + IDFPath + '""');
-    DoCmdlineInstall('Extracting ESP-IDF', 'Copying ESP-IDF into the destination directory', CmdLine);
-    GitRepoFixFileMode(IDFPath);
+    Res := RenameFile(IDFTempPath, IDFPath);
+    if not Res then
+    begin
+      MsgBox('Failed to copy ESP-IDF to the destination directory: ' + IDFPath, mbError, MB_OK);
+      RaiseException('Failed to copy ESP-IDF');
+    end;
     GitRepoFixNewlines(IDFPath);
-    DelTree(IDFTempPath, True, True, True);
   end;
 end;
 
 { ------------------------------ IDF Tools setup, Python environment setup ------------------------------ }
-
-function UseBundledIDFToolsPy(Version: String) : Boolean;
-begin
-  Result := False;
-  { Use bundled copy of idf_tools.py, as the copy shipped with these IDF versions can not work due to
-    the --no-site-packages bug.
-  }
-  if (Version = 'v4.0') or (Version = 'v3.3.1') then
-  begin
-    Log('UseBundledIDFToolsPy: version=' + Version + ', using bundled idf_tools.py');
-    Result := True;
-  end;
-end;
 
 procedure IDFToolsSetup();
 var
@@ -228,34 +202,20 @@ var
   IDFPath: String;
   IDFToolsPyPath: String;
   IDFToolsPyCmd: String;
-  BundledIDFToolsPyPath: String;
-  JSONArg: String;
 begin
   IDFPath := GetIDFPath('');
   IDFToolsPyPath := IDFPath + '\tools\idf_tools.py';
-  BundledIDFToolsPyPath := ExpandConstant('{app}\idf_tools_fallback.py');
-  JSONArg := '';
-
   if FileExists(IDFToolsPyPath) then
   begin
     Log('idf_tools.py exists in IDF directory');
-    if UseBundledIDFToolsPy(IDFDownloadVersion) then
-    begin
-      Log('Using the bundled idf_tools.py copy');
-      IDFToolsPyCmd := BundledIDFToolsPyPath;
-    end else begin
-      IDFToolsPyCmd := IDFToolsPyPath;
-    end;
+    IDFToolsPyCmd := PythonExecutablePath + ' ' + IDFToolsPyPath;
   end else begin
     Log('idf_tools.py does not exist in IDF directory, using a fallback version');
-    IDFToolsPyCmd := BundledIDFToolsPyPath;
-    JSONArg := ExpandConstant('--tools "{app}\tools_fallback.json"');
+    IDFToolsPyCmd := ExpandConstant(PythonExecutablePath
+                                    + ' "{app}\idf_tools_fallback.py"'
+                                    + ' --idf-path ' + IDFPath
+                                    + ' --tools "{app}\tools_fallback.json"');
   end;
-
-  { IDFPath not quoted, as it can not contain spaces }
-  IDFToolsPyCmd := PythonExecutablePath + ' "' + IDFToolsPyCmd + '" --idf-path ' + IDFPath + JSONArg;
-
-  SetEnvironmentVariable('PYTHONUNBUFFERED', '1')
 
   Log('idf_tools.py command: ' + IDFToolsPyCmd);
   CmdLine := IDFToolsPyCmd + ' install';
@@ -267,95 +227,20 @@ begin
   DoCmdlineInstall('Installing Python environment', '', CmdLine);
 end;
 
-{ Find Major and Minor version in esp_idf_version.h file. }
-function GetIDFVersionFromHeaderFile():String;
-var
-  HeaderFileName: String;
-  HeaderLines: TArrayOfString;
-  LineIndex: Integer;
-  LineCount: Longint;
-  Line: String;
-  MajorVersion: String;
-  MinorVersion: String;
-begin
-  HeaderFileName := GetIDFPath('') + '\components\esp_common\include\esp_idf_version.h';
-  if (not FileExists(HeaderFileName)) then begin
-    Result := '';
-    Exit;
-  end;
-
-  LoadStringsFromFile(HeaderFileName, HeaderLines);
-  LineCount := GetArrayLength(HeaderLines);
-  for LineIndex := 0 to LineCount - 1 do begin
-    Line := HeaderLines[LineIndex];
-    if (pos('define ESP_IDF_VERSION_MAJOR', Line) > 0) then begin
-      Delete(Line, 1, 29);
-      MajorVersion := Trim(Line);
-    end else if (pos('define ESP_IDF_VERSION_MINOR', Line) > 0) then begin
-      Delete(Line, 1, 29);
-      MinorVersion := Trim(Line);
-      Result := MajorVersion + '.' + MinorVersion;
-      Exit;
-    end
-  end;
-end;
-
 { ------------------------------ Start menu shortcut ------------------------------ }
 
-procedure CreateIDFCommandPromptShortcut(LnkString: String);
+procedure CreateIDFCommandPromptShortcut();
 var
   Destination: String;
   Description: String;
-  VersionIndex: Integer;
-  MajorString: String;
-  MinorString: String;
-  DotIndex: Integer;
-  IDFVersionString: String;
-  PythonVirtualEnvPath: String;
   Command: String;
 begin
-  ForceDirectories(ExpandConstant(LnkString));
-  Destination := ExpandConstant(LnkString + '\{#IDFCmdExeShortcutFile}');
+  ForceDirectories(ExpandConstant('{group}'));
+  Destination := ExpandConstant('{group}\{#IDFCmdExeShortcutFile}');
   Description := '{#IDFCmdExeShortcutDescription}';
-
-  IDFVersionString := IDFDownloadVersion;
-  { Transform version vx.y or release/vx.y to x.y }
-  VersionIndex := pos('v', IDFVersionString);
-  if (VersionIndex > 0) then begin
-    Delete(IDFVersionString, 1, VersionIndex);
-  end;
-
-  { Transform version x.y.z to x.y }
-  DotIndex := pos('.', IDFVersionString);
-  if (DotIndex > 0) then begin
-    MajorString := Copy(IDFVersionString, 1, DotIndex - 1);
-    Delete(IDFVersionString, 1, DotIndex);
-    { Trim trailing version numbers. }
-    DotIndex := pos('.', IDFVersionString);
-    if (DotIndex > 0) then begin
-      MinorString := Copy(IDFVersionString, 1, DotIndex - 1);
-      IDFVersionString := MajorString + '.' + MinorString;
-    end else begin
-     IDFVersionString :=  MajorString + '.' + IDFVersionString;
-    end;
-  end;
-
-  { Transform master to x.y }
-  if (IDFVersionString = 'master') then begin
-    IDFVersionString := GetIDFVersionFromHeaderFile();
-  end;
-
-  { The links should contain reference to Python vitual env }
-  PythonVirtualEnvPath := ExpandConstant('{app}\python_env\idf') + IDFVersionString + '_py' + PythonVersion + '_env\Scripts';
-
-  { Fallback in case of not existing environment. }
-  if (not FileExists(PythonVirtualEnvPath + '\python.exe')) then begin
-    PythonVirtualEnvPath := PythonPath;
-  end;
-
   { If cmd.exe command argument starts with a quote, the first and last quote chars in the command
     will be removed by cmd.exe; each argument needs to be surrounded by quotes as well. }
-  Command := ExpandConstant('/k ""{app}\idf_cmd_init.bat" "') + PythonVirtualEnvPath + '" "' + GitPath + '""';
+  Command := ExpandConstant('/k ""{app}\idf_cmd_init.bat" "') + PythonPath + '" "' + GitPath + '""';
   Log('CreateShellLink Destination=' + Destination + ' Description=' + Description + ' Command=' + Command)
   try
     CreateShellLink(
@@ -368,40 +253,5 @@ begin
   except
     MsgBox('Failed to create the Start menu shortcut: ' + Destination, mbError, MB_OK);
     RaiseException('Failed to create the shortcut');
-  end;
-end;
-
-
-{ ------------------------------ WD exclusion registration ------------------------------ }
-
-procedure RegisterIDFToolsExecutablesInWD();
-var
-  CmdLine: String;
-begin
-  CmdLine := ExpandConstant('powershell -ExecutionPolicy ByPass -File "{app}\dist\tools_WD_excl.ps1" -AddExclPath "{app}\*.exe"');
-  Log('Registering IDF Tools executables in Windows Defender: ' + CmdLine);
-  DoCmdlineInstall('Finishing ESP-IDF installation', 'Registering IDF Tools executables in Windows Defender', CmdLine);
-end;
-
-
-
-<event('CurPageChanged')>
-procedure CheckWinDefenderAvailable(CurPageID: Integer);
-var
-  x: Integer;
-begin
-  if CurPageID = wpSelectTasks then
-  begin
-    { WD registration checkbox is identified by 'Windows Defender' substring anywhere in its caption.
-      Please, keep this in mind when making changes }
-    for x:=0 to (WizardForm.TasksList.Items.Count-1) do
-    begin
-      if Pos('Windows Defender',  WizardForm.TasksList.ItemCaption[x]) > 0 then
-      begin
-        WizardForm.TasksList.ItemEnabled[x] := isWindowsDefenderEnabled;
-        WizardForm.TasksList.Checked[x] := isWindowsDefenderEnabled;
-        break;
-      end;
-    end;
   end;
 end;

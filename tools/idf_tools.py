@@ -55,20 +55,11 @@ import shutil
 import functools
 import copy
 from collections import OrderedDict, namedtuple
-import ssl
-import contextlib
 
 try:
-    import typing  # noqa: F401
+    from urllib.request import urlretrieve
 except ImportError:
-    pass
-
-try:
-    from urllib.parse import splittype
-    from urllib.request import urlopen
-    from urllib.error import ContentTooShortError
-except ImportError:
-    from urllib import urlopen, splittype, ContentTooShortError
+    from urllib import urlretrieve
 
 try:
     from exceptions import WindowsError
@@ -143,46 +134,12 @@ CURRENT_PLATFORM = PLATFORM_FROM_NAME.get(PYTHON_PLATFORM, UNKNOWN_PLATFORM)
 EXPORT_SHELL = 'shell'
 EXPORT_KEY_VALUE = 'key-value'
 
-ISRG_X1_ROOT_CERT = u"""
------BEGIN CERTIFICATE-----
-MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
-TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
-cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
-WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
-ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
-MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
-h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
-0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
-A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
-T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
-B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
-B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
-KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
-OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
-jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
-qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
-rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
-HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
-hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
-ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
-3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
-NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
-ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
-TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
-jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
-oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
-4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
-mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
-emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
------END CERTIFICATE-----
-"""
-
 
 global_quiet = False
 global_non_interactive = False
-global_idf_path = None  # type: typing.Optional[str]
-global_idf_tools_path = None  # type: typing.Optional[str]
-global_tools_json = None  # type: typing.Optional[str]
+global_idf_path = None
+global_idf_tools_path = None
+global_tools_json = None
 
 
 def fatal(text, *args):
@@ -224,7 +181,7 @@ def run_cmd_check_output(cmd, input_text=None, extra_paths=None):
     try:
         if input_text:
             input_text = input_text.encode()
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, input=input_text)
+        result = subprocess.run(cmd, capture_output=True, check=True, input=input_text)
         return result.stdout + result.stderr
     except (AttributeError, TypeError):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -290,7 +247,7 @@ def mkdir_p(path):
 
 def unpack(filename, destination):
     info('Extracting {0} to {1}'.format(filename, destination))
-    if filename.endswith(('.tar.gz', '.tgz')):
+    if filename.endswith('tar.gz'):
         archive_obj = tarfile.open(filename, 'r:gz')
     elif filename.endswith('zip'):
         archive_obj = zipfile.ZipFile(filename)
@@ -301,53 +258,6 @@ def unpack(filename, destination):
         # https://bugs.python.org/issue17153
         destination = str(destination)
     archive_obj.extractall(destination)
-
-
-# An alternative version of urlretrieve which takes SSL context as an argument
-def urlretrieve_ctx(url, filename, reporthook=None, data=None, context=None):
-    url_type, path = splittype(url)
-
-    # urlopen doesn't have context argument in Python <=2.7.9
-    extra_urlopen_args = {}
-    if context:
-        extra_urlopen_args["context"] = context
-    with contextlib.closing(urlopen(url, data, **extra_urlopen_args)) as fp:
-        headers = fp.info()
-
-        # Just return the local path and the "headers" for file://
-        # URLs. No sense in performing a copy unless requested.
-        if url_type == "file" and not filename:
-            return os.path.normpath(path), headers
-
-        # Handle temporary file setup.
-        tfp = open(filename, 'wb')
-
-        with tfp:
-            result = filename, headers
-            bs = 1024 * 8
-            size = int(headers.get("content-length", -1))
-            read = 0
-            blocknum = 0
-
-            if reporthook:
-                reporthook(blocknum, bs, size)
-
-            while True:
-                block = fp.read(bs)
-                if not block:
-                    break
-                read += len(block)
-                tfp.write(block)
-                blocknum += 1
-                if reporthook:
-                    reporthook(blocknum, bs, size)
-
-    if size >= 0 and read < size:
-        raise ContentTooShortError(
-            "retrieval incomplete: got only %i out of %i bytes"
-            % (read, size), result)
-
-    return result
 
 
 # Sometimes renaming a directory on Windows (randomly?) causes a PermissionError.
@@ -446,7 +356,7 @@ class IDFToolVersion(object):
     def add_download(self, platform_name, url, size, sha256):
         self.downloads[platform_name] = IDFToolDownload(platform_name, url, size, sha256)
 
-    def get_download_for_platform(self, platform_name):  # type: (str) -> IDFToolDownload
+    def get_download_for_platform(self, platform_name):
         if platform_name in PLATFORM_FROM_NAME.keys():
             platform_name = PLATFORM_FROM_NAME[platform_name]
         if platform_name in self.downloads.keys():
@@ -457,9 +367,6 @@ class IDFToolVersion(object):
 
     def compatible_with_platform(self, platform_name=PYTHON_PLATFORM):
         return self.get_download_for_platform(platform_name) is not None
-
-    def get_supported_platforms(self):  # type: () -> typing.Set[str]
-        return set(self.downloads.keys())
 
 
 OPTIONS_LIST = ['version_cmd',
@@ -485,7 +392,7 @@ class IDFTool(object):
                  strip_container_dirs=0):
         self.name = name
         self.description = description
-        self.versions = OrderedDict()  # type: typing.Dict[str, IDFToolVersion]
+        self.versions = OrderedDict()
         self.version_in_path = None
         self.versions_installed = []
         if version_regex_replace is None:
@@ -496,7 +403,7 @@ class IDFTool(object):
         self._platform = CURRENT_PLATFORM
         self._update_current_options()
 
-    def copy_for_platform(self, platform):  # type: (str) -> IDFTool
+    def copy_for_platform(self, platform):
         result = copy.deepcopy(self)
         result._platform = platform
         result._update_current_options()
@@ -515,18 +422,18 @@ class IDFTool(object):
         assert(type(version) is IDFToolVersion)
         self.versions[version.version] = version
 
-    def get_path(self):  # type: () -> str
+    def get_path(self):
         return os.path.join(global_idf_tools_path, 'tools', self.name)
 
-    def get_path_for_version(self, version):  # type: (str) -> str
+    def get_path_for_version(self, version):
         assert(version in self.versions)
         return os.path.join(self.get_path(), version)
 
-    def get_export_paths(self, version):  # type: (str) -> typing.List[str]
+    def get_export_paths(self, version):
         tool_path = self.get_path_for_version(version)
         return [os.path.join(tool_path, *p) for p in self._current_options.export_paths]
 
-    def get_export_vars(self, version):  # type: (str) -> typing.Dict[str]
+    def get_export_vars(self, version):
         """
         Get the dictionary of environment variables to be exported, for the given version.
         Expands:
@@ -541,7 +448,7 @@ class IDFTool(object):
             result[k] = v_repl
         return result
 
-    def check_version(self, extra_paths=None):  # type: (typing.Optional[typing.List[str]]) -> str
+    def check_version(self, extra_paths=None):
         """
         Execute the tool, optionally prepending extra_paths to PATH,
         extract the version string and return it as a result.
@@ -573,12 +480,6 @@ class IDFTool(object):
 
     def compatible_with_platform(self):
         return any([v.compatible_with_platform() for v in self.versions.values()])
-
-    def get_supported_platforms(self):  # type: () -> typing.Set[str]
-        result = set()
-        for v in self.versions.values():
-            result.update(v.get_supported_platforms())
-        return result
 
     def get_recommended_version(self):
         recommended_versions = [k for k, v in self.versions.items()
@@ -665,19 +566,7 @@ class IDFTool(object):
             local_temp_path = local_path + '.tmp'
             info('Downloading {} to {}'.format(archive_name, local_temp_path))
             try:
-                ctx = None
-                # For dl.espressif.com, add the ISRG x1 root certificate.
-                # This works around the issue with outdated certificate stores in some installations.
-                if "dl.espressif.com" in url:
-                    try:
-                        ctx = ssl.create_default_context()
-                        ctx.load_verify_locations(cadata=ISRG_X1_ROOT_CERT)
-                    except AttributeError:
-                        # no ssl.create_default_context or load_verify_locations cadata argument
-                        # in Python <=2.7.8
-                        pass
-
-                urlretrieve_ctx(url, local_temp_path, report_progress if not global_non_interactive else None, context=ctx)
+                urlretrieve(url, local_temp_path, report_progress if not global_non_interactive else None)
                 sys.stdout.write("\rDone\n")
             except Exception as e:
                 # urlretrieve could throw different exceptions, e.g. IOError when the server is down
@@ -903,7 +792,7 @@ class IDFTool(object):
         return tool_json
 
 
-def load_tools_info():  # type: () -> typing.Dict[str, IDFTool]
+def load_tools_info():
     """
     Load tools metadata from tools.json, return a dictionary: tool name - tool info
     """
@@ -954,7 +843,7 @@ def get_python_env_path():
             idf_version_str = version_file.read()
     else:
         try:
-            idf_version_str = subprocess.check_output(['git', 'describe'],
+            idf_version_str = subprocess.check_output(['git', 'describe', '--tags'],
                                                       cwd=global_idf_path, env=os.environ).decode()
         except subprocess.CalledProcessError as e:
             warn('Git describe was unsuccessul: {}'.format(e))
@@ -1163,11 +1052,6 @@ def action_export(args):
         raise SystemExit(1)
 
 
-def apply_url_mirrors(args, tool_download_obj):
-    apply_mirror_prefix_map(args, tool_download_obj)
-    apply_github_assets_option(tool_download_obj)
-
-
 def apply_mirror_prefix_map(args, tool_download_obj):
     """Rewrite URL for given tool_obj, given tool_version, and current platform,
        if --mirror-prefix-map flag or IDF_MIRROR_PREFIX_MAP environment variable is given.
@@ -1193,32 +1077,6 @@ def apply_mirror_prefix_map(args, tool_download_obj):
                 info('Changed download URL: {} => {}'.format(old_url, new_url))
                 tool_download_obj.url = new_url
                 break
-
-
-def apply_github_assets_option(tool_download_obj):
-    """ Rewrite URL for given tool_obj if the download URL is an https://github.com/ URL and the variable
-    IDF_GITHUB_ASSETS is set. The github.com part of the URL will be replaced.
-    """
-    try:
-        github_assets = os.environ["IDF_GITHUB_ASSETS"].strip()
-    except KeyError:
-        return  # no IDF_GITHUB_ASSETS
-    if not github_assets:  # variable exists but is empty
-        return
-
-    # check no URL qualifier in the mirror URL
-    if '://' in github_assets:
-        fatal("IDF_GITHUB_ASSETS shouldn't include any URL qualifier, https:// is assumed")
-        raise SystemExit(1)
-
-    # Strip any trailing / from the mirror URL
-    github_assets = github_assets.rstrip('/')
-
-    old_url = tool_download_obj.url
-    new_url = re.sub(r'^https://github.com/', 'https://{}/'.format(github_assets), old_url)
-    if new_url != old_url:
-        info('Using GitHub assets mirror for URL: {} => {}'.format(old_url, new_url))
-        tool_download_obj.url = new_url
 
 
 def action_download(args):
@@ -1263,7 +1121,7 @@ def action_download(args):
         tool_spec = '{}@{}'.format(tool_name, tool_version)
 
         info('Downloading {}'.format(tool_spec))
-        apply_url_mirrors(args, tool_obj.versions[tool_version].get_download_for_platform(platform))
+        apply_mirror_prefix_map(args, tool_obj.versions[tool_version].get_download_for_platform(platform))
 
         tool_obj.download(tool_version)
 
@@ -1304,7 +1162,7 @@ def action_install(args):
             continue
 
         info('Installing {}'.format(tool_spec))
-        apply_url_mirrors(args, tool_obj.versions[tool_version].get_download_for_platform(PYTHON_PLATFORM))
+        apply_mirror_prefix_map(args, tool_obj.versions[tool_version].get_download_for_platform(PYTHON_PLATFORM))
 
         tool_obj.download(tool_version)
         tool_obj.install(tool_version)
@@ -1312,11 +1170,6 @@ def action_install(args):
 
 def action_install_python_env(args):
     idf_python_env_path, _, virtualenv_python = get_python_env_path()
-
-    is_virtualenv = hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
-    if is_virtualenv and (not os.path.exists(idf_python_env_path) or args.reinstall):
-        fatal('This script was called from a virtual environment, can not create a virtual environment again')
-        raise SystemExit(1)
 
     if args.reinstall and os.path.exists(idf_python_env_path):
         warn('Removing the existing Python environment in {}'.format(idf_python_env_path))
@@ -1414,87 +1267,6 @@ def action_validate(args):
     # on failure, this will raise an exception with a fairly verbose diagnostic message
 
 
-def action_gen_doc(args):
-    f = args.output
-    tools_info = load_tools_info()
-
-    def print_out(text):
-        f.write(text + '\n')
-
-    print_out(".. |zwsp| unicode:: U+200B")
-    print_out("   :trim:")
-    print_out("")
-
-    idf_gh_url = "https://github.com/espressif/esp-idf"
-    for tool_name, tool_obj in tools_info.items():
-        info_url = tool_obj.options.info_url
-        if idf_gh_url + "/tree" in info_url:
-            info_url = re.sub(idf_gh_url + r"/tree/\w+/(.*)", r":idf:`\1`", info_url)
-
-        license_url = "https://spdx.org/licenses/" + tool_obj.options.license
-
-        print_out("""
-.. _tool-{name}:
-
-{name}
-{underline}
-
-{description}
-
-.. include:: idf-tools-notes.inc
-   :start-after: tool-{name}-notes
-   :end-before: ---
-
-License: `{license} <{license_url}>`_
-
-More info: {info_url}
-
-.. list-table::
-   :widths: 10 10 80
-   :header-rows: 1
-
-   * - Platform
-     - Required
-     - Download
-""".rstrip().format(name=tool_name,
-                    underline=args.heading_underline_char * len(tool_name),
-                    description=tool_obj.description,
-                    license=tool_obj.options.license,
-                    license_url=license_url,
-                    info_url=info_url))
-
-        for platform_name in sorted(tool_obj.get_supported_platforms()):
-            platform_tool = tool_obj.copy_for_platform(platform_name)
-            install_type = platform_tool.get_install_type()
-            if install_type == IDFTool.INSTALL_NEVER:
-                continue
-            elif install_type == IDFTool.INSTALL_ALWAYS:
-                install_type_str = "required"
-            elif install_type == IDFTool.INSTALL_ON_REQUEST:
-                install_type_str = "optional"
-            else:
-                raise NotImplementedError()
-
-            version = platform_tool.get_recommended_version()
-            version_obj = platform_tool.versions[version]
-            download_obj = version_obj.get_download_for_platform(platform_name)
-
-            # Note: keep the list entries indented to the same number of columns
-            # as the list header above.
-            print_out("""
-   * - {}
-     - {}
-     - {}
-
-       .. rst-class:: tool-sha256
-
-          SHA256: {}
-""".strip('\n').format(platform_name, install_type_str, download_obj.url, download_obj.sha256))
-
-        print_out('')
-    print_out('')
-
-
 def main(argv):
     parser = argparse.ArgumentParser()
 
@@ -1555,11 +1327,6 @@ def main(argv):
         rewrite.add_argument('--output', help='Save new tools.json into this file')
 
         subparsers.add_parser('validate', help='Validate tools.json against schema file')
-
-        gen_doc = subparsers.add_parser('gen-doc', help='Write the list of tools as a documentation page')
-        gen_doc.add_argument('--output', type=argparse.FileType('w'), default=sys.stdout,
-                             help='Output file name')
-        gen_doc.add_argument('--heading-underline-char', help='Character to use when generating RST sections', default='~')
 
     args = parser.parse_args(argv)
 

@@ -7,12 +7,16 @@ from __future__ import print_function
 import argparse
 import confgen
 import json
-import kconfiglib
 import os
 import sys
 import tempfile
-
 from confgen import FatalError, __version__
+
+try:
+    from . import kconfiglib
+except Exception:
+    sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+    import kconfiglib
 
 # Min/Max supported protocol versions
 MIN_PROTOCOL_VERSION = 1
@@ -65,7 +69,7 @@ def main():
 
     if args.env_file is not None:
         env = json.load(args.env_file)
-        os.environ.update(confgen.dict_enc_for_env(env))
+        os.environ.update(env)
 
     run_server(args.kconfig, args.config, args.sdkconfig_rename)
 
@@ -220,13 +224,6 @@ def handle_set(config, error, to_set):
                     sym.set_value(0)
                 else:
                     error.append("Boolean symbol %s only accepts true/false values" % sym.name)
-            elif sym.type == kconfiglib.HEX:
-                try:
-                    if not isinstance(val, int):
-                        val = int(val, 16)  # input can be a decimal JSON value or a string of hex digits
-                    sym.set_value(hex(val))
-                except ValueError:
-                    error.append("Hex symbol %s can accept a decimal integer or a string of hex digits, only")
             else:
                 sym.set_value(str(val))
             print("Set %s" % sym.name)
@@ -248,41 +245,15 @@ def diff(before, after):
 def get_ranges(config):
     ranges_dict = {}
 
-    def is_base_n(i, n):
-        try:
-            int(i, n)
-            return True
-        except ValueError:
-            return False
-
-    def get_active_range(sym):
-        """
-        Returns a tuple of (low, high) integer values if a range
-        limit is active for this symbol, or (None, None) if no range
-        limit exists.
-        """
-        base = kconfiglib._TYPE_TO_BASE[sym.orig_type] if sym.orig_type in kconfiglib._TYPE_TO_BASE else 0
-
-        try:
-            for low_expr, high_expr, cond in sym.ranges:
-                if kconfiglib.expr_value(cond):
-                    low = int(low_expr.str_value, base) if is_base_n(low_expr.str_value, base) else 0
-                    high = int(high_expr.str_value, base) if is_base_n(high_expr.str_value, base) else 0
-                    return (low, high)
-        except ValueError:
-            pass
-        return (None, None)
-
     def handle_node(node):
         sym = node.item
         if not isinstance(sym, kconfiglib.Symbol):
             return
-        active_range = get_active_range(sym)
+        active_range = sym.active_range
         if active_range[0] is not None:
             ranges_dict[sym.name] = active_range
 
-    for n in config.node_iter():
-        handle_node(n)
+    config.walk_menu(handle_node)
     return ranges_dict
 
 
@@ -303,8 +274,7 @@ def get_visible(config):
             result[node] = visible
         except AttributeError:
             menus.append(node)
-    for n in config.node_iter():
-        handle_node(n)
+    config.walk_menu(handle_node)
 
     # now, figure out visibility for each menu. A menu is visible if any of its children are visible
     for m in reversed(menus):  # reverse to start at leaf nodes

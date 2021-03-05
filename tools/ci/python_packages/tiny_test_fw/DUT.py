@@ -40,7 +40,6 @@ If they using different port then need to implement their DUTPort class as well.
 from __future__ import print_function
 import time
 import re
-import sys
 import threading
 import copy
 import functools
@@ -79,12 +78,11 @@ def _expect_lock(func):
 def _decode_data(data):
     """ for python3, if the data is bytes, then decode it to string """
     if isinstance(data, bytes):
-        # convert bytes to string. This is a bit of a hack, we know that we want to log this
-        # later so encode to the stdout encoding with backslash escapes for anything non-encodable
+        # convert bytes to string
         try:
-            return data.decode(sys.stdout.encoding, "backslashreplace")
-        except UnicodeDecodeError:  # Python <3.5 doesn't support backslashreplace
-            return data.decode(sys.stdout.encoding, "replace")
+            data = data.decode("utf-8", "ignore")
+        except UnicodeDecodeError:
+            data = data.decode("iso8859-1", )
     return data
 
 
@@ -573,7 +571,7 @@ class BaseDUT(object):
         return self.__getattribute__(method)
 
     @_expect_lock
-    def expect(self, pattern, timeout=DEFAULT_EXPECT_TIMEOUT, full_stdout=False):
+    def expect(self, pattern, timeout=DEFAULT_EXPECT_TIMEOUT):
         """
         expect(pattern, timeout=DEFAULT_EXPECT_TIMEOUT)
         expect received data on DUT match the pattern. will raise exception when expect timeout.
@@ -583,11 +581,9 @@ class BaseDUT(object):
 
         :param pattern: string or compiled RegEx(string pattern)
         :param timeout: timeout for expect
-        :param full_stdout: return full stdout until meet expect string/pattern or just matched string
         :return: string if pattern is string; matched groups if pattern is RegEx
         """
         method = self._get_expect_method(pattern)
-        stdout = ''
 
         # non-blocking get data for first time
         data = self.data_cache.get_data(0)
@@ -602,13 +598,12 @@ class BaseDUT(object):
                 break
             # wait for new data from cache
             data = self.data_cache.get_data(time_remaining)
-            stdout = data
 
         if ret is None:
             pattern = _pattern_to_string(pattern)
             self._save_expect_failure(pattern, data, start_time)
             raise ExpectTimeout(self.name + ": " + pattern)
-        return stdout if full_stdout else ret
+        return ret
 
     def _expect_multi(self, expect_all, expect_item_list, timeout):
         """
@@ -756,9 +751,7 @@ class SerialDUT(BaseDUT):
     def __init__(self, name, port, log_file, app, **kwargs):
         self.port_inst = None
         self.serial_configs = self.DEFAULT_UART_CONFIG.copy()
-        for uart_config_name in self.serial_configs.keys():
-            if uart_config_name in kwargs:
-                self.serial_configs[uart_config_name] = kwargs[uart_config_name]
+        self.serial_configs.update(kwargs)
         super(SerialDUT, self).__init__(name, port, log_file, app, **kwargs)
 
     def _format_data(self, data):
@@ -773,7 +766,7 @@ class SerialDUT(BaseDUT):
         return formatted_data
 
     def _port_open(self):
-        self.port_inst = serial.serial_for_url(self.port, **self.serial_configs)
+        self.port_inst = serial.Serial(self.port, **self.serial_configs)
 
     def _port_close(self):
         self.port_inst.close()

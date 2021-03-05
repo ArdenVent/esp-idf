@@ -77,7 +77,7 @@ endfunction()
 # by converting it to a generated source file which is then compiled
 # to a binary object as part of the build
 function(target_add_binary_data target embed_file embed_type)
-    cmake_parse_arguments(_ "" "RENAME_TO" "DEPENDS" ${ARGN})
+    cmake_parse_arguments(_ "" "RENAME_TO" "" ${ARGN})
     idf_build_get_property(build_dir BUILD_DIR)
     idf_build_get_property(idf_path IDF_PATH)
 
@@ -99,7 +99,7 @@ function(target_add_binary_data target embed_file embed_type)
         -D "FILE_TYPE=${embed_type}"
         -P "${idf_path}/tools/cmake/scripts/data_file_embed_asm.cmake"
         MAIN_DEPENDENCY "${embed_file}"
-        DEPENDS "${idf_path}/tools/cmake/scripts/data_file_embed_asm.cmake" ${__DEPENDS}
+        DEPENDS "${idf_path}/tools/cmake/scripts/data_file_embed_asm.cmake"
         WORKING_DIRECTORY "${build_dir}"
         VERBATIM)
 
@@ -284,9 +284,6 @@ function(add_c_compile_options)
 endfunction()
 
 
-# add_prebuild_library
-#
-# Add prebuilt library with support for adding dependencies on ESP-IDF components.
 function(add_prebuilt_library target_name lib_path)
     cmake_parse_arguments(_ "" "" "REQUIRES;PRIV_REQUIRES" ${ARGN})
 
@@ -307,36 +304,4 @@ function(add_prebuilt_library target_name lib_path)
         set_property(TARGET ${target_name} APPEND PROPERTY LINK_LIBRARIES "${req_lib}")
         set_property(TARGET ${target_name} APPEND PROPERTY INTERFACE_LINK_LIBRARIES "$<LINK_ONLY:${req_lib}>")
     endforeach()
-endfunction()
-
-
-# file_generate
-#
-# Utility to generate file and have the output automatically added to cleaned files.
-function(file_generate output)
-    cmake_parse_arguments(_ "" "INPUT;CONTENT" "" ${ARGN})
-
-    if(__INPUT)
-        file(GENERATE OUTPUT "${output}" INPUT "${__INPUT}")
-    elseif(__CONTENT)
-        file(GENERATE OUTPUT "${output}" CONTENT "${__CONTENT}")
-    else()
-        message(FATAL_ERROR "Content to generate not specified.")
-    endif()
-
-    set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${output}")
-endfunction()
-
-# add_subdirectory_if_exists
-#
-# Like add_subdirectory, but only proceeds if the given source directory exists.
-function(add_subdirectory_if_exists source_dir)
-    get_filename_component(abs_dir "${source_dir}"
-        ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-    if(EXISTS "${abs_dir}")
-        add_subdirectory("${source_dir}" ${ARGN})
-    else()
-        message(STATUS "Subdirectory '${abs_dir}' does not exist, skipped.")
-    endif()
 endfunction()

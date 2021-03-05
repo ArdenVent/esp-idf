@@ -18,7 +18,6 @@ import threading
 import functools
 
 import netifaces
-import traceback
 
 from . import EnvConfig
 
@@ -82,7 +81,6 @@ class Env(object):
                 dut_class = self.default_dut_cls
             if app_class is None:
                 app_class = self.app_cls
-            detected_target = None
             try:
                 port = self.config.get_variable(dut_name)
             except ValueError:
@@ -91,18 +89,13 @@ class Env(object):
                 available_ports = dut_class.list_available_ports()
                 for port in available_ports:
                     if port not in allocated_ports:
-                        result, detected_target = dut_class.confirm_dut(port)
+                        result = dut_class.confirm_dut(port)
                         if result:
                             break
                 else:
                     port = None
 
-            app_target = dut_class.TARGET
-            if not app_target:
-                app_target = detected_target
-            if not app_target:
-                raise ValueError("DUT class doesn't specify the target, and autodetection failed")
-            app_inst = app_class(app_path, app_config_name, app_target)
+            app_inst = app_class(app_path, app_config_name)
 
             if port:
                 try:
@@ -110,10 +103,10 @@ class Env(object):
                 except ValueError:
                     dut_config = dict()
                 dut_config.update(dut_init_args)
-                dut = dut_class(dut_name, port,
-                                os.path.join(self.log_path, dut_name + ".log"),
-                                app_inst,
-                                **dut_config)
+                dut = self.default_dut_cls(dut_name, port,
+                                           os.path.join(self.log_path, dut_name + ".log"),
+                                           app_inst,
+                                           **dut_config)
                 self.allocated_duts[dut_name] = {"port": port, "dut": dut}
             else:
                 raise ValueError("Failed to get DUT")
@@ -186,12 +179,11 @@ class Env(object):
         dut_close_errors = []
         for dut_name in self.allocated_duts:
             dut = self.allocated_duts[dut_name]["dut"]
+            if dut_debug:
+                dut.print_debug_info()
             try:
-                if dut_debug:
-                    dut.print_debug_info()
                 dut.close()
             except Exception as e:
-                traceback.print_exc()
                 dut_close_errors.append(e)
         self.allocated_duts = dict()
         return dut_close_errors

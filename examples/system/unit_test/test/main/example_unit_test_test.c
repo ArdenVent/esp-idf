@@ -13,7 +13,7 @@
 
 static void print_banner(const char* text);
 
-void app_main(void)
+void app_main()
 {
     /* These are the different ways of running registered tests.
      * In practice, only one of them is usually needed.
@@ -52,3 +52,4 @@ static void print_banner(const char* text)
 {
     printf("\n#### %s #####\n\n", text);
 }
+

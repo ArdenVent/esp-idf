@@ -38,11 +38,13 @@ string(REGEX REPLACE "[^\n]+$" ".byte \\0\n" data "${data}")                    
 string(REGEX REPLACE "[0-9a-f][0-9a-f]" "0x\\0, " data "${data}")                      # hex formatted C bytes
 string(REGEX REPLACE ", \n" "\n" data "${data}")                                       # trim the last comma
 
-# Use source file name as variable name unless VARIABLE_BASENAME is set
+## Come up with C-friendly variable name based on source file
+# unless VARIABLE_BASENAME is set
 if(NOT VARIABLE_BASENAME)
-    get_filename_component(varname "${DATA_FILE}" NAME)
+    get_filename_component(source_filename "${DATA_FILE}" NAME)
+    string(MAKE_C_IDENTIFIER "${source_filename}" varname)
 else()
-    set(varname "${VARIABLE_BASENAME}")
+    string(MAKE_C_IDENTIFIER "${VARIABLE_BASENAME}" varname)
 endif()
 
 function(append str)
@@ -53,14 +55,13 @@ function(append_line str)
     append("${str}\n")
 endfunction()
 
-function(make_and_append_identifier str)
-    string(MAKE_C_IDENTIFIER "${str}" symbol)
-    append_line("\n.global ${symbol}")
-    append("${symbol}:")
-    if(${ARGC} GREATER 1) # optional comment
-        append(" /* ${ARGV1} */")
-    endif()
-    append("\n")
+function(append_identifier symbol)
+append_line("\n.global ${symbol}")
+append("${symbol}:")
+if(${ARGC} GREATER 1) # optional comment
+    append(" /* ${ARGV1} */")
+endif()
+append("\n")
 endfunction()
 
 file(WRITE "${SOURCE_FILE}" "/*")
@@ -72,15 +73,16 @@ append_line(" */")
 
 append_line(".data")
 append_line(".section .rodata.embedded")
-make_and_append_identifier("${varname}")
-make_and_append_identifier("_binary_${varname}_start" "for objcopy compatibility")
+append_identifier("${varname}")
+append_identifier("_binary_${varname}_start" "for objcopy compatibility")
 append("${data}")
-make_and_append_identifier("_binary_${varname}_end" "for objcopy compatibility")
+
+append_identifier("_binary_${varname}_end" "for objcopy compatibility")
 
 append_line("")
 if(FILE_TYPE STREQUAL "TEXT")
-    make_and_append_identifier("${varname}_length" "not including null byte")
+    append_identifier("${varname}_length" "not including null byte")
 else()
-    make_and_append_identifier("${varname}_length")
+    append_identifier("${varname}_length")
 endif()
 append_line(".word ${data_len}")

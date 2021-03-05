@@ -1,7 +1,7 @@
-ESP32 ULP coprocessor instruction set
-=====================================
+ULP coprocessor instruction set
+===============================
 
-This document provides details about the instructions used by {IDF_TARGET_NAME} ULP coprocessor assembler.
+This document provides details about the instructions used by ESP32 ULP coprocessor assembler.
 
 ULP coprocessor has 4 16-bit general purpose registers, labeled R0, R1, R2, R3. It also has an 8-bit counter register (stage_cnt) which can be used to implement loops. Stage count regiter is accessed using special instructions.
 
@@ -13,7 +13,7 @@ The instruction syntax is case insensitive. Upper and lower case letters can be 
 
 Note about addressing
 ---------------------
-{IDF_TARGET_NAME} ULP coprocessor's JUMP, ST, LD instructions which take register as an argument (jump address, store/load base address) expect the argument to be expressed in 32-bit words.
+ESP32 ULP coprocessor's JUMP, ST, LD instructions which take register as an argument (jump address, store/load base address) expect the argument to be expressed in 32-bit words.
 
 Consider the following example program::
 
@@ -358,7 +358,7 @@ Note that when accessing RTC memories and RTC registers, ULP coprocessor has low
 **Operands**
   - *Rsrc* – Register R[0..3], holds the 16-bit value to store
   - *Rdst* – Register R[0..3], address of the destination, in 32-bit words
-  - *Offset* – 13-bit signed value, offset in bytes
+  - *Offset* – 10-bit signed value, offset in bytes
 
 **Cycles**
   4 cycles to execute, 4 cycles to fetch next instruction
@@ -395,7 +395,7 @@ Note that when accessing RTC memories and RTC registers, ULP coprocessor has low
 
    *Rsrc* – Register R[0..3], holds address of destination, in 32-bit words
 
-   *Offset* – 13-bit signed value, offset in bytes
+   *Offset* – 10-bit signed value, offset in bytes
 
 **Cycles**
   4 cycles to execute, 4 cycles to fetch next instruction
@@ -786,7 +786,7 @@ Note that when accessing RTC memories and RTC registers, ULP coprocessor has low
 **Operands**
   - *Rdst* – Destination Register R[0..3], result will be stored to this register
   - *Sar_sel* – Select ADC: 0 = SARADC1, 1 = SARADC2
-  - *Mux*  -  selected PAD, SARADC Pad[Mux-1] is enabled. If the user passes Mux value 1, then ADC pad 0 gets used.
+  - *Mux*  -  selected PAD, SARADC Pad[Mux+1] is enabled
 
 **Cycles**
   ``23 + max(1, SAR_AMP_WAIT1) + max(1, SAR_AMP_WAIT2) + max(1, SAR_AMP_WAIT3) + SARx_SAMPLE_CYCLE + SARx_SAMPLE_BIT`` cycles to execute, 4 cycles to fetch next instruction
@@ -940,9 +940,4 @@ WRITE_RTC_FIELD(rtc_reg, field, value)
 
     /* Set RTC_CNTL_ULP_CP_SLP_TIMER_EN field of RTC_CNTL_STATE0_REG to 0 */
     WRITE_RTC_FIELD(RTC_CNTL_STATE0_REG, RTC_CNTL_ULP_CP_SLP_TIMER_EN, 0)
-
-
-
-
-
 

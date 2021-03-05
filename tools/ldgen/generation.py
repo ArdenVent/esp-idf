@@ -21,7 +21,7 @@ import fnmatch
 
 from fragments import Sections, Scheme, Mapping, Fragment
 from pyparsing import Suppress, White, ParseException, Literal, Group, ZeroOrMore
-from pyparsing import Word, OneOrMore, nums, alphanums, alphas, Optional, restOfLine
+from pyparsing import Word, OneOrMore, nums, alphanums, alphas, Optional, LineEnd, printables
 from ldgen_common import LdGenFailure
 
 
@@ -80,7 +80,8 @@ class PlacementRule():
         def do_section_expansion(rule, section):
             if section in rule.get_section_names():
                 sections_in_obj = sections_infos.get_obj_sections(rule.archive, rule.obj)
-                expansions = [n for n in sections_in_obj or [] if fnmatch.fnmatch(n, section)]
+
+                expansions = fnmatch.filter(sections_in_obj, section)
                 return expansions
 
         def remove_section_expansions(rule, section, expansions):
@@ -321,6 +322,8 @@ class GenerationModel:
         return scheme_dictionary
 
     def generate_rules(self, sections_infos):
+        placement_rules = collections.defaultdict(list)
+
         scheme_dictionary = self._build_scheme_dictionary()
 
         # Generate default rules
@@ -350,19 +353,14 @@ class GenerationModel:
         for mapping_rules in all_mapping_rules.values():
             self._create_exclusions(mapping_rules, default_rules, sections_infos)
 
-        placement_rules = collections.defaultdict(list)
-
         # Add the default rules grouped by target
         for default_rule in default_rules:
             existing_rules = placement_rules[default_rule.target]
             if default_rule.get_section_names():
                 existing_rules.append(default_rule)
 
-        archives = sorted(all_mapping_rules.keys())
-
-        for archive in archives:
+        for mapping_rules in all_mapping_rules.values():
             # Add the mapping rules grouped by target
-            mapping_rules = sorted(all_mapping_rules[archive], key=lambda m: (m.specificity, str(m)))
             for mapping_rule in mapping_rules:
                 existing_rules = placement_rules[mapping_rule.target]
                 if mapping_rule.get_section_names():
@@ -580,9 +578,9 @@ class SectionsInfo(dict):
         first_line = sections_info_dump.readline()
 
         archive_path = (Literal("In archive").suppress() +
-                        White().suppress() +
-                        # trim the colon and line ending characters from archive_path
-                        restOfLine.setResultsName("archive_path").setParseAction(lambda s, loc, toks: s.rstrip(":\n\r ")))
+                        # trim the last character from archive_path, :
+                        Word(printables + " ").setResultsName("archive_path").setParseAction(lambda t: t[0][:-1]) +
+                        LineEnd())
         parser = archive_path
 
         results = None
@@ -590,15 +588,14 @@ class SectionsInfo(dict):
         try:
             results = parser.parseString(first_line)
         except ParseException as p:
-            raise ParseException("Parsing sections info for library " + sections_info_dump.name + " failed. " + p.msg)
+            raise ParseException("Parsing sections info for library " + sections_info_dump.name + " failed. " + p.message)
 
         archive = os.path.basename(results.archive_path)
         self.sections[archive] = SectionsInfo.__info(sections_info_dump.name, sections_info_dump.read())
 
     def _get_infos_from_file(self, info):
         # Object file line: '{object}:  file format elf32-xtensa-le'
-        obj = Fragment.ENTITY.setResultsName("object") + Literal(":").suppress() + \
-            (Literal("file format elf32-") + (Literal("xtensa-le") | Literal("littleriscv"))).suppress()
+        object = Fragment.ENTITY.setResultsName("object") + Literal(":").suppress() + Literal("file format elf32-xtensa-le").suppress()
 
         # Sections table
         header = Suppress(Literal("Sections:") + Literal("Idx") + Literal("Name") + Literal("Size") + Literal("VMA") +
@@ -608,7 +605,7 @@ class SectionsInfo(dict):
                                                                    Optional(Literal(","))))
 
         # Content is object file line + sections table
-        content = Group(obj + header + Group(ZeroOrMore(entry)).setResultsName("sections"))
+        content = Group(object + header + Group(ZeroOrMore(entry)).setResultsName("sections"))
 
         parser = Group(ZeroOrMore(content)).setResultsName("contents")
 
@@ -618,7 +615,7 @@ class SectionsInfo(dict):
         try:
             results = parser.parseString(sections_info_text)
         except ParseException as p:
-            raise ParseException("Unable to parse section info file " + info.filename + ". " + p.msg)
+            raise ParseException("Unable to parse section info file " + info.filename + ". " + p.message)
 
         return results
 
@@ -635,5 +632,5 @@ class SectionsInfo(dict):
             self.sections[archive] = stored
 
         for obj_key in stored.keys():
-            if obj_key == obj + ".o" or obj_key == obj + ".c.obj":
+            if any(obj_key == obj + ext for ext in (".o", ".c.obj", ".c.o")):
                 return stored[obj_key]

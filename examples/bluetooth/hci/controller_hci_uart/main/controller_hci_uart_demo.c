@@ -10,9 +10,7 @@
 #include <string.h>
 #include "nvs_flash.h"
 #include "esp_bt.h"
-#include "soc/uhci_periph.h"
 #include "driver/uart.h"
-#include "driver/periph_ctrl.h"
 #include "esp_log.h"
 
 static const char *tag = "CONTROLLER_UART_HCI";
@@ -33,8 +31,8 @@ static void uart_gpio_reset(void)
 #endif
 }
 
-void app_main(void)
-{
+void app_main()
+{ 
     esp_err_t ret;
 
     /* Initialize NVS — it is used to store PHY calibration data */
@@ -62,3 +60,4 @@ void app_main(void)
         return;
     }
 }
+

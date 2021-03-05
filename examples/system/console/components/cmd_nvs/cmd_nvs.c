@@ -507,7 +507,7 @@ static int list_entries(int argc, char **argv)
     return list(part, name, type);
 }
 
-void register_nvs(void)
+void register_nvs()
 {
     set_args.key = arg_str1(NULL, NULL, "<key>", "key of the value to be set");
     set_args.type = arg_str1(NULL, NULL, "<type>", ARG_TYPE_STR);

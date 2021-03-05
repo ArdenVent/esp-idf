@@ -1,10 +1,10 @@
 #include <stdbool.h>
 #include <setjmp.h>
 
-extern void app_main(void);
+extern void app_main();
 jmp_buf buf;
 
-int main(void)
+int main()
 {
     setjmp(buf);
     app_main();

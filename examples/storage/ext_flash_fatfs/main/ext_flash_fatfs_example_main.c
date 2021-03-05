@@ -6,7 +6,7 @@
    CONDITIONS OF ANY KIND, either express or implied.
 
    This sample shows how to store files inside a FAT filesystem.
-   FAT filesystem is stored in a partition inside SPI flash, using the
+   FAT filesystem is stored in a partition inside SPI flash, using the 
    flash wear levelling library.
 */
 
@@ -28,7 +28,7 @@ static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 // Mount path for the partition
 const char *base_path = "/extflash";
 
-static esp_flash_t* example_init_ext_flash(void);
+static esp_flash_t* example_init_ext_flash();
 static const esp_partition_t* example_add_partition(esp_flash_t* ext_flash, const char* partition_label);
 static void example_list_data_partitions(void);
 static bool example_mount_fatfs(const char* partition_label);
@@ -88,7 +88,7 @@ void app_main(void)
     ESP_LOGI(TAG, "Read from file: '%s'", line);
 }
 
-static esp_flash_t* example_init_ext_flash(void)
+static esp_flash_t* example_init_ext_flash()
 {
     const spi_bus_config_t bus_config = {
         .mosi_io_num = VSPI_IOMUX_PIN_NUM_MOSI,
@@ -102,7 +102,7 @@ static esp_flash_t* example_init_ext_flash(void)
         .host_id = VSPI_HOST,
         .cs_id = 0,
         .cs_io_num = VSPI_IOMUX_PIN_NUM_CS,
-        .io_mode = SPI_FLASH_DIO,
+        .io_mode = SPI_FLASH_FASTRD,
         .speed = ESP_FLASH_40MHZ
     };
 

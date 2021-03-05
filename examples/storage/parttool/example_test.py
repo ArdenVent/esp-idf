@@ -6,9 +6,9 @@ import subprocess
 import ttfw_idf
 
 
-@ttfw_idf.idf_example_test(env_tag='Example_GENERIC')
+@ttfw_idf.idf_example_test(env_tag='Example_WIFI')
 def test_examples_parttool(env, extra_data):
-    dut = env.get_dut('parttool', 'examples/storage/parttool', dut_class=ttfw_idf.ESP32DUT)
+    dut = env.get_dut('parttool', 'examples/storage/parttool')
     dut.start_app(False)
 
     # Verify factory firmware
@@ -28,7 +28,7 @@ def test_examples_parttool(env, extra_data):
             binary_path = flash_file[1]
             break
 
-    subprocess.check_call([sys.executable, script_path, "--binary", binary_path, "--port", dut.port])
+    subprocess.check_call([sys.executable, script_path, "--binary", binary_path])
 
 
 if __name__ == '__main__':
