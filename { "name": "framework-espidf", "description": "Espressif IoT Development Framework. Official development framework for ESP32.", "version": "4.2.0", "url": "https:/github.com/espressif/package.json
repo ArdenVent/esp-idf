@@ -1,6 +1,0 @@
-{
-"name": "framework-espidf",
-"description": "Espressif IoT Development Framework. Modified development framework for ESP32 for ArdenVent purposes.",
-"version": "4.2.0",
-"url": "https://github.com/ArdenVent/esp-idf"
-}
